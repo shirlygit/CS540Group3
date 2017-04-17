@@ -1,0 +1,599 @@
+// S1414j.jj JavaCC input file for S1414j compiler
+options 
+{
+  STATIC = false;         // generate non-static methods
+
+  // set to true to debug token manager
+  COMMON_TOKEN_ACTION = false;   
+
+  // pass parser reference to the token manager
+  TOKEN_MANAGER_USES_PARSER = true; 
+}                                // end of options block
+//======================================================
+PARSER_BEGIN(S1414j)
+import java.io.*;
+import java.util.ArrayList;
+class S1414j
+{
+  private PrintWriter outFile;   
+  private S1414jSymTab st;
+  private S1414jCodeGen cg;
+  //-----------------------------------------
+  public static void main(String[] args) throws 
+                                             IOException
+  {
+    System.out.println("S1414j compiler written by Hung PHAN, Shir Lie Ooi, Sen Shen");
+
+    if (args.length != 1)
+    {
+      System.err.println("Wrong number cmd line args");  
+      System.exit(1);
+    }
+
+    // build input and output file names
+    String inFileName = args[0] + ".s";
+    String outFileName = args[0] + ".a";
+
+    // construct file objects
+    FileInputStream inFile = 
+                       new FileInputStream(inFileName);
+    PrintWriter outFile = new PrintWriter(outFileName);
+
+    // identify compiler/author in output file
+    outFile.println("; from S1414j compiler written by Hung PHAN, Shir Lie Ooi, Sen Shen");
+
+    // construct objects that make up compiler
+    S1414jSymTab st = new S1414jSymTab();
+    S1414jCodeGen cg = new S1414jCodeGen(outFile, st);
+    S1414j parser = new S1414j(inFile);
+
+    // initialize parser's instance variables
+    parser.outFile = outFile;
+    parser.st = st;   
+    parser.cg = cg;
+
+    try 
+    {
+      parser.program();
+    }
+    catch(ParseException e) 
+    {
+      System.err.println(e.getMessage());
+      outFile.println(e.getMessage());
+      outFile.close();
+      System.exit(1);
+    }
+
+    outFile.close();
+  }
+  //-----------------------------------------
+  // If COMMON_TOKEN_ACTION is true, the token manager 
+  // calls makeComment for each token to create the
+  // token trace.
+  //
+  public void makeComment(Token t)
+  {
+    outFile.printf(
+      "; kd=%3d bL=%3d bC=%3d eL=%3d eC=%3d im= %s%n",
+       t.kind, t.beginLine, t.beginColumn, t.endLine, 
+       t.endColumn, t.image);
+  }
+  
+  // second makeComment method
+  public void makeComment(Token t1, Token t2)
+  {
+	outFile.print("; "); // start comment
+	while (t1 != t2)
+	{
+		outFile.print(t1.image + " ");
+		t1 = t1.next;
+	}
+	outFile.println(); // terminate comment
+  }
+  
+  //third makeComment method
+  public void makeComment(String s)
+  {
+	outFile.println("; " + s);
+  }
+}                                          // end of S1414j
+//======================================================
+class S1414jSymTab
+{
+  private ArrayList<String> symbol;
+  //-----------------------------------------
+  public S1414jSymTab()
+  {
+    symbol = new ArrayList<String>();
+  }
+  //-----------------------------------------
+  public void enter(String s)
+  {
+    int index = symbol.indexOf(s);
+
+    // if s is not in symbol, then add it
+    if (index < 0)
+      symbol.add(s);
+  }
+  //-----------------------------------------
+  public String getSymbol(int i)
+  {
+    return symbol.get(i);
+  }
+  //-----------------------------------------
+  public int getSize()
+  {
+    return symbol.size();
+  }
+}                                    // end of S1414jSymTab
+//======================================================
+class S1414jCodeGen
+{
+  private PrintWriter outFile;
+  private S1414jSymTab st;
+  private int labelNumber;
+  //-----------------------------------------
+  public S1414jCodeGen(PrintWriter outFile, S1414jSymTab st)
+  {
+    this.outFile = outFile;
+    this.st = st;
+    this.labelNumber = 0;
+  }
+  //-----------------------------------------
+  public void emitInstruction(String op)
+  {
+    outFile.printf("          %-4s%n", op); 
+  }
+  //-----------------------------------------
+  public void emitInstruction(String op, String opnd)
+  {
+    outFile.printf(
+                  "          %-4s      %s%n", op, opnd); 
+  }
+  //-----------------------------------------
+  public void emitdw(String label, String value)
+  {
+    outFile.printf(
+             "%-9s dw        %s%n", label + ":", value);
+  }
+  //-----------------------------------------
+  public String getLabel()
+  {
+	  return "@L" + labelNumber++;
+  }
+  
+  public void endCode()
+  {
+    outFile.println();
+    emitInstruction("halt");
+
+    int size = st.getSize();
+    // emit dw for each symbol in the symbol table
+    for (int i=0; i < size; i++) 
+      emitdw(st.getSymbol(i), "0");
+  }
+}                             // end of S1414jCodeGen class
+PARSER_END(S1414j)
+
+// Specification of the S1414j token manager ==============
+
+TOKEN_MGR_DECLS:
+{
+  // called for each token returned to parser
+  void CommonTokenAction(Token t)
+  {
+    parser.makeComment(t);
+  }
+}
+//------------------------------
+SKIP:  // these tokens are not returned to parser
+{
+   " " 
+ | 
+   "\n" 
+ | 
+   "\r" 
+ | 
+   "\t"
+ |
+   <"//" (~["\n", "\r"])*>
+}
+//------------------------------
+TOKEN:  // these tokens are returned to parser
+{
+   <PRINTLN: "println">  // must precede <ID> 
+ |
+   <PRINT: "print">
+ |
+   <READINT: "readint">
+ |
+   <INCREMENTOPERATOR: ["+"]["+"]["A"-"Z","a"-"z"] (["A"-"Z","a"-"z","0"-"9"])* | ["A"-"Z","a"-"z"] (["A"-"Z","a"-"z","0"-"9"])* "++">
+ |
+   <DECREMENTOPERATOR: ["-"]["-"]["A"-"Z","a"-"z"] (["A"-"Z","a"-"z","0"-"9"])* | ["A"-"Z","a"-"z"] (["A"-"Z","a"-"z","0"-"9"])* "--" > 
+ |
+   <UNSIGNED: (["0"-"9"])+>
+ |
+   <STRING: "\"" (~["\n", "\r"])+ "\"">
+ |
+   <ID: ["A"-"Z","a"-"z"] (["A"-"Z","a"-"z","0"-"9"])*>
+ |
+   <ASSIGN: "=">
+ |
+   <SEMICOLON: ";">
+ |
+   <LEFTPAREN: "(">
+ |
+   <RIGHTPAREN: ")">
+ |
+   <PLUS: "+">
+ |
+   <MINUS: "-">
+ |
+   <TIMES: "*">
+ |
+   <DIVIDE: "/">
+ |
+   <LEFTBRACE: "{">
+ |
+   <RIGHTBRACE: "}">
+ |
+   <ERROR: ~[]>  // matches any single character
+}
+
+// Translation grammar for S1414j and S1 ==================
+
+void program(): {}
+{  
+   statementList() 
+   {cg.endCode();}
+   <EOF>
+}
+//------------------------------
+void statementList(): {} 
+{
+   statement() 
+   statementList()  
+ |  
+   {}
+}    
+//------------------------------
+void statement(): {Token t; boolean outComment;} 
+{
+	{t = getToken(1);} // save current token
+	{outComment = true;}
+	(
+	   assignmentStatement()
+	 |
+	   printlnStatement()
+	 |
+	   printStatement()
+	 |
+	   nullStatement()
+	 |
+	   compoundStatement()
+	   {outComment = false;}
+	 |
+	 	readintStatement()
+	)
+	// output tokens from t to current token
+	{if (outComment) makeComment(t, getToken(1));}
+}
+//------------------------------
+void assignmentStatement(): {Token t;}
+{
+   t=<ID>  
+   {st.enter(t.image);}
+   {cg.emitInstruction("pc", t.image);;}
+   "="
+   assignmentTail()
+   {cg.emitInstruction("stav");}
+}
+//------------------------------
+void assignmentTail(): {Token t;}
+{
+   LOOKAHEAD(2)
+   t=<ID>  
+   {st.enter(t.image);}
+   {cg.emitInstruction("pc", t.image);}
+   "="
+   assignmentTail()
+   {cg.emitInstruction("dupe");}
+   {cg.emitInstruction("rot");}
+   {cg.emitInstruction("stav");}
+ |
+   expr()
+   ";"
+}
+//------------------------------
+void printlnStatement(): {}
+{
+   "println"
+   "("
+   (
+     	printArg()
+   	|
+   		{}
+   ) 
+   {cg.emitInstruction("pc", "'\\n'");}
+   {cg.emitInstruction("aout");}
+   ")"
+   ";"
+}
+
+void printArg(): {Token t; String label;}
+{
+	t=<STRING>
+	{label=cg.getLabel();}
+	{cg.emitInstruction("pc", label);}
+   	{cg.emitInstruction("sout");}
+   	{cg.emitdw("^"+label, t.image);}
+  |
+  	expr()
+	{cg.emitInstruction("dout");}
+}
+
+//------------------------------
+void printStatement(): {}
+{
+   "print"
+   "("
+   printArg()
+   ")"
+   ";"
+}
+//------------------------------
+void nullStatement(): {}
+{
+   ";"
+}
+//------------------------------
+void compoundStatement(): {}
+{
+   "{"
+   {makeComment("{");}
+   statementList()
+   "}"
+   {makeComment("}");}
+}
+
+void readintStatement(): {Token t;}
+{
+   "readint"
+   "("
+   t=<ID>
+   {st.enter(t.image);}
+   {cg.emitInstruction("pc", t.image);}
+   {cg.emitInstruction("din");}
+   {cg.emitInstruction("stav");}
+   ")"
+   ";"
+}
+//------------------------------
+void expr(): {}
+{
+   term()
+   termList()
+}
+//------------------------------
+void termList(): {}
+{
+   "+"
+   term()
+   {cg.emitInstruction("add");}
+   termList()
+|  
+   "-"
+   term()
+   {cg.emitInstruction("sub");}
+   termList()
+|  
+   {}
+}
+//------------------------------
+void term(): {}
+{
+   factor()
+   factorList()
+}
+//------------------------------
+void factorList(): {}
+{
+   "*"  
+   factor()
+   {cg.emitInstruction("mult");}
+   factorList()
+ |  
+   "/"  
+   factor()
+   {cg.emitInstruction("div");}
+   factorList()
+ |
+   {}
+}
+//------------------------------
+void factor(): {Token t;}
+{
+   t=<UNSIGNED> 
+   {cg.emitInstruction("pwc", t.image);}
+ |
+   t=<ID> 
+   {st.enter(t.image);}
+   {cg.emitInstruction("p", t.image);}
+ |
+   "(" expr() ")"
+ | 
+   "+"
+   factor()
+ | 
+   "++"
+   (
+     
+   	LOOKAHEAD(1)
+     t=<UNSIGNED>
+     {cg.emitInstruction("pwc",  t.image);}
+     {cg.emitInstruction("pwc", "1");}
+   {cg.emitInstruction("add");}
+   |
+   LOOKAHEAD(1)
+     t=<ID>
+     {cg.emitInstruction("pwc",  t.image);}
+     {cg.emitInstruction("pwc", "1");}
+   {cg.emitInstruction("add");}
+ 	|
+ 	"("
+ 	expr()
+ 	")"
+   	{cg.emitInstruction("pwc", "1");}
+   {cg.emitInstruction("add");}
+   )
+   
+ | 
+   "--"
+   (
+   
+     LOOKAHEAD(1)
+     t=<UNSIGNED>
+     {cg.emitInstruction("pwc",  t.image);}
+        {cg.emitInstruction("pwc", "1");}
+   {cg.emitInstruction("sub");}
+   |
+     LOOKAHEAD(1)
+     t=<ID>
+     {cg.emitInstruction("pwc",  t.image);}
+        {cg.emitInstruction("pwc", "1");}
+   {cg.emitInstruction("sub");}
+ 	|
+ 	LOOKAHEAD(1)
+ 	"("
+ 	expr()
+ 	")"
+	   {cg.emitInstruction("pwc", "1");}
+   {cg.emitInstruction("sub");}   
+   )
+
+ 
+ |
+   "-" 
+   (
+      t=<UNSIGNED> 
+      {cg.emitInstruction("pwc", "-" + t.image);}
+    |
+      t=<ID>
+      {st.enter(t.image);}
+   	  {cg.emitInstruction("p", t.image);}
+      {cg.emitInstruction("neg");}
+    |
+      "(" 
+      expr() 
+      ")"
+      {cg.emitInstruction("neg");}  
+    |
+      (
+         LOOKAHEAD(1)  // suppress warning message
+         "+"
+      )+
+      (   
+         LOOKAHEAD(1)  // suppress warning message
+         "-"
+         factor()
+       |
+         factor()
+         {cg.emitInstruction("neg");}  
+      )
+    | 
+      "-"
+      factor()
+    |
+    LOOKAHEAD(1)
+      "++"
+      (
+        LOOKAHEAD(1)
+          t=<UNSIGNED> 
+	      {cg.emitInstruction("pwc", "-" + t.image);}
+	      {cg.emitInstruction("pwc", "1");}
+   	  	  {cg.emitInstruction("add");}
+	    |
+	    	LOOKAHEAD(1)
+	      t=<ID>
+	      {st.enter(t.image);}
+	   	  {cg.emitInstruction("p", t.image);}
+	      {cg.emitInstruction("neg");}
+	      {cg.emitInstruction("pwc", "1");}
+   	  	  {cg.emitInstruction("add");}
+	    |
+	      "(" 
+	      expr() 
+	      ")"
+	      {cg.emitInstruction("neg");}
+	      {cg.emitInstruction("pwc", "1");}
+   	  	  {cg.emitInstruction("add");}  
+	    |
+	      (
+	         LOOKAHEAD(1)  // suppress warning message
+	         "+"
+	      )+
+	      (   
+	         LOOKAHEAD(1)  // suppress warning message
+	         "-"
+	         factor()
+	       |
+	         factor()
+	         {cg.emitInstruction("neg");}  
+	      )
+	      {cg.emitInstruction("pwc", "1");}
+   	  	  {cg.emitInstruction("add");}
+	    | 
+	      "-"
+	      factor()
+	      {cg.emitInstruction("pwc", "1");}
+   	  	  {cg.emitInstruction("add");}      )
+      
+   	  | 
+      "--"
+      (
+          t=<UNSIGNED> 
+	      {cg.emitInstruction("pwc", "-" + t.image);}
+	      {cg.emitInstruction("pwc", "1");}
+   	      {cg.emitInstruction("sub");}
+	      
+	    |
+	      t=<ID>
+	      {st.enter(t.image);}
+	   	  {cg.emitInstruction("p", t.image);}
+	      {cg.emitInstruction("neg");}
+	      {cg.emitInstruction("pwc", "1");}
+   	      {cg.emitInstruction("sub");}
+	      
+	    |
+	      "(" 
+	      expr() 
+	      ")"
+	      {cg.emitInstruction("neg");}
+	      {cg.emitInstruction("pwc", "1");}
+   	      {cg.emitInstruction("sub");}
+	        
+	    |
+	      (
+	         LOOKAHEAD(1)  // suppress warning message
+	         "+"
+	      )+
+	      (   
+	         LOOKAHEAD(1)  // suppress warning message
+	         "-"
+	         factor()
+	       |
+	         factor()
+	         {cg.emitInstruction("neg");}  
+	      )
+	      {cg.emitInstruction("pwc", "1");}
+   	      {cg.emitInstruction("sub");}
+	      
+	    | 
+	      "-"
+	      factor()
+	      {cg.emitInstruction("pwc", "1");}
+   	      {cg.emitInstruction("sub");}
+      )
+      
+   )
+}

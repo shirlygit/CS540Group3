@@ -1,0 +1,4 @@
+Complete problem #14 of Chapter 14.
+Read sections 15.10 and 15.13 and complete problem #1 of Chapter 15. 
+Complete problem #1 of Chapter 16.
+Submit the following files: S1414j.jj, S4j.jj, and S5j.jj.

@@ -1,0 +1,205 @@
+options 
+{
+  STATIC = false;         // generate non-static methods
+
+  // set to true to debug token manager
+  COMMON_TOKEN_ACTION = false;   
+
+  // pass parser reference to the token manager
+  TOKEN_MANAGER_USES_PARSER = true; 
+}      
+PARSER_BEGIN(Q3)
+import java.io.*;
+import java.util.*;
+public class Q3 {
+  public static void main(String[] args) throws Exception {
+	Q3 parser = new Q3(new FileInputStream(args[0]));
+	try {int val = parser.prog(); System.out.println(val);}
+		catch(Exception e) {System.out.println("no");}}
+	}
+//======================================================
+class Q3SymTab
+{
+  private ArrayList<String> symbol;
+  //-----------------------------------------
+  public Q3SymTab()
+  {
+    symbol = new ArrayList<String>();
+  }
+  //-----------------------------------------
+  public void enter(String s)
+  {
+    int index = symbol.indexOf(s);
+
+    // if s is not in symbol, then add it
+    if (index < 0)
+      symbol.add(s);
+  }
+  //-----------------------------------------
+  public String getSymbol(int i)
+  {
+    return symbol.get(i);
+  }
+  //-----------------------------------------
+  public int getSize()
+  {
+    return symbol.size();
+  }
+}                                    // end of Q3SymTab
+//======================================================
+class Q3CodeGen
+{
+  private PrintWriter outFile;
+  private Q3SymTab st;
+  //-----------------------------------------
+  public Q3CodeGen(PrintWriter outFile, Q3SymTab st)
+  {
+    this.outFile = outFile;
+    this.st = st;
+  }
+  //-----------------------------------------
+  public void emitInstruction(String op)
+  {
+    outFile.printf("          %-4s%n", op); 
+  }
+  //-----------------------------------------
+  public void emitInstruction(String op, String opnd)
+  {
+    outFile.printf(
+                  "          %-4s      %s%n", op, opnd); 
+  }
+  //-----------------------------------------
+  public void emitdw(String label, String value)
+  {
+    outFile.printf(
+             "%-9s dw        %s%n", label + ":", value);
+  }
+  //-----------------------------------------
+  public void endCode()
+  {
+    outFile.println();
+    emitInstruction("halt");
+
+    int size = st.getSize();
+    // emit dw for each symbol in the symbol table
+    for (int i=0; i < size; i++) 
+      emitdw(st.getSymbol(i), "0");
+  }
+}                             // end of Q3CodeGen class
+
+PARSER_END(Q3)
+
+
+// Specification of the Q3 token manager ==============
+
+TOKEN_MGR_DECLS:
+{
+ 
+}
+//------------------------------
+SKIP:  // these tokens are not returned to parser
+{
+   " " 
+ | 
+   "\n" 
+ | 
+   "\r" 
+ | 
+   "\t"
+ |
+   <"//"(~["\n", "\r"])*>
+}
+//------------------------------
+TOKEN:  // these tokens are returned to parser
+{
+     <THEN: "THEN">  // must precede <ID> 
+ |
+     <ELSE: "ELSE">  // must precede <ID> 
+ |
+     <FI: "FI">  // must precede <ID> 
+ |
+ <WHILE: "WHILE">  // must precede <ID> 
+ |
+    <DO: "DO">  // must precede <ID> 
+ |
+    <IF: "IF">  // must precede <ID>
+ |
+   <ASSIGN2: ":="> 
+ |
+   <PRINTLN: "println">  // must precede <ID> 
+ |
+   <PRINT: "print">
+ |
+   <UNSIGNED: (["0"-"9"])+> 
+ |
+   <ID: ["A"-"Z","a"-"z"] (["A"-"Z","a"-"z","0"-"9"])*>
+ |
+   <ASSIGN: "=">
+ |
+   <SEMICOLON: ";">
+ |
+   <LEFTPAREN: "(">
+ |
+   <RIGHTPAREN: ")">
+ |
+   <PLUS: "+">
+ |
+   <MINUS: "-">
+ |
+   <TIMES: "*">
+ |
+   <DIVIDE: "/">
+ |
+   <LEFTBRACE: "{">
+ |
+   <RIGHTBRACE: "}">
+  
+  |
+   <ANDBIT: "&">
+ |
+   <ERROR: ~[]>  // matches any single character
+}
+/*S -> EXPR
+EXPR -> EXPR "+" T
+EXPR -> T
+T -> T "*" F
+T -> F
+F -> UNSIGNED
+F -> "(" EXPR ")"
+
+*/
+
+// Translation grammar for S2j and S1 ==================
+int prog():{int val;}
+{
+  val=S()
+   { return val;}
+}
+int S(): {int i;} {
+  i = EXPR()
+  <EOF>
+  {return i;}
+}
+int EXPR():{int i1, i2;}
+{
+  i1=T()
+  (<PLUS> i2=T() {i1+=i2;})*
+  {return i1;}
+}
+
+int T(): { int i1,i2;} {
+	i1=F()
+	(<TIMES> i2=F() { i1*=i2;})*
+	{ return i1;}	  	  
+}
+
+int F(): {Token t; int i1;} {
+	t=<UNSIGNED>
+	{ return Integer.parseInt(t.image);}
+|
+"("
+i1=EXPR()
+")"
+{return i1;}
+}
+

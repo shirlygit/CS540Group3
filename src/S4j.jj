@@ -1,0 +1,608 @@
+// S4j.jj JavaCC input file for S4j compiler
+options 
+{
+  STATIC = false;         // generate non-static methods
+
+  // set to true to debug token manager
+  COMMON_TOKEN_ACTION = false;   
+
+  // pass parser reference to the token manager
+  TOKEN_MANAGER_USES_PARSER = true; 
+}                                // end of options block
+//======================================================
+PARSER_BEGIN(S4j)
+import java.io.*;
+import java.util.ArrayList;
+class S4j
+{
+  private PrintWriter outFile;   
+  private S4jSymTab st;
+  private S4jCodeGen cg;
+  //-----------------------------------------
+  public static void main(String[] args) throws 
+                                             IOException
+  {
+    System.out.println("S4j compiler written by Hung PHAN, Shir Lie Ooi, Sen Shen");
+
+    if (args.length != 1)
+    {
+      System.err.println("Wrong number cmd line args");  
+      System.exit(1);
+    }
+
+    // build input and output file names
+    String inFileName = args[0] + ".s";
+    String outFileName = args[0] + ".a";
+
+    // construct file objects
+    FileInputStream inFile = 
+                       new FileInputStream(inFileName);
+    PrintWriter outFile = new PrintWriter(outFileName);
+
+    // identify compiler/author in output file
+    outFile.println("; from S4j compiler written by Hung PHAN, Shir Lie Ooi, Sen Shen");
+
+    // construct objects that make up compiler
+    S4jSymTab st = new S4jSymTab();
+    S4jCodeGen cg = new S4jCodeGen(outFile, st);
+    S4j parser = new S4j(inFile);
+
+    // initialize parser's instance variables
+    parser.outFile = outFile;
+    parser.st = st;   
+    parser.cg = cg;
+
+    try 
+    {
+      parser.program();
+    }
+    catch(ParseException e) 
+    {
+      System.err.println(e.getMessage());
+      outFile.println(e.getMessage());
+      outFile.close();
+      System.exit(1);
+    }
+
+    outFile.close();
+  }
+  //-----------------------------------------
+  // If COMMON_TOKEN_ACTION is true, the token manager 
+  // calls makeComment for each token to create the
+  // token trace.
+  //
+  public void makeComment(Token t)
+  {
+    outFile.printf(
+      "; kd=%3d bL=%3d bC=%3d eL=%3d eC=%3d im= %s%n",
+       t.kind, t.beginLine, t.beginColumn, t.endLine, 
+       t.endColumn, t.image);
+  }
+  
+  // second makeComment method
+  public void makeComment(Token t1, Token t2)
+  {
+	outFile.print("; "); // start comment
+	while (t1 != t2)
+	{
+		outFile.print(t1.image + " ");
+		t1 = t1.next;
+	}
+	outFile.println(); // terminate comment
+  }
+  
+  //third makeComment method
+  public void makeComment(String s)
+  {
+	outFile.println("; " + s);
+  }
+  //-----------------------------------------
+  // Construct and return an exception that contains
+  // a message consisting of the image of the current
+  // token, its location, and the expected tokens.
+  //
+  private ParseException genEx(String errorMessage)
+  {
+    return new ParseException("Encountered \"" + 
+      getToken(1).image + "\" on line " + 
+      getToken(1).beginLine + ", column " + 
+      getToken(1).beginColumn + "." +
+      System.getProperty("line.separator") + 
+      errorMessage);
+  }
+}                                          // end of S4j
+//======================================================
+class S4jSymTab
+{
+  private ArrayList<String> symbol;
+  //-----------------------------------------
+  public S4jSymTab()
+  {
+    symbol = new ArrayList<String>();
+  }
+  //-----------------------------------------
+  public void enter(String s)
+  {
+    int index = symbol.indexOf(s);
+
+    // if s is not in symbol, then add it
+    if (index < 0)
+      symbol.add(s);
+  }
+  //-----------------------------------------
+  public String getSymbol(int i)
+  {
+    return symbol.get(i);
+  }
+  //-----------------------------------------
+  public int getSize()
+  {
+    return symbol.size();
+  }
+}                                    // end of S4jSymTab
+//======================================================
+class S4jCodeGen
+{
+  private PrintWriter outFile;
+  private S4jSymTab st;
+  private int labelNumber;
+  //-----------------------------------------
+  public S4jCodeGen(PrintWriter outFile, S4jSymTab st)
+  {
+    this.outFile = outFile;
+    this.st = st;
+    this.labelNumber = 0;
+  }
+  //-----------------------------------------
+  public void emitInstruction(String op)
+  {
+    outFile.printf("          %-4s%n", op); 
+  }
+  //-----------------------------------------
+  public void emitInstruction(String op, String opnd)
+  {
+    outFile.printf(
+                  "          %-4s      %s%n", op, opnd); 
+  }
+  //-----------------------------------------
+  public void emitdw(String label, String value)
+  {
+    outFile.printf(
+             "%-9s dw        %s%n", label + ":", value);
+  }
+  //-----------------------------------------
+  public void emitString(String message)
+  {
+	outFile.println(message);
+  }
+  //-----------------------------------------
+  public void emitLabel(String label1)
+  {
+	  outFile.printf(
+	             "%-9s%n", label1 + ":");
+  }
+  //-----------------------------------------
+  public String getLabel()
+  {
+	  return "@L" + labelNumber++;
+  }
+  
+  public void endCode()
+  {
+    outFile.println();
+    emitInstruction("halt");
+
+    int size = st.getSize();
+    // emit dw for each symbol in the symbol table
+    for (int i=0; i < size; i++) 
+      emitdw(st.getSymbol(i), "0");
+  }
+}                             // end of S4jCodeGen class
+PARSER_END(S4j)
+
+// Specification of the S4j token manager ==============
+
+TOKEN_MGR_DECLS:
+{
+  // called for each token returned to parser
+  void CommonTokenAction(Token t)
+  {
+    parser.makeComment(t);
+  }
+}
+//------------------------------
+SKIP:  // these tokens are not returned to parser
+{
+   " " 
+ | 
+   "\n" 
+ | 
+   "\r" 
+ | 
+   "\t"
+ |
+   <"//" (~["\n", "\r"])*>
+}
+//------------------------------
+MORE:
+{
+   "\"": IN_STRING      // matches initial quote in string
+}
+//------------------------------
+TOKEN:  // these tokens are returned to parser
+{
+   <IF: "if">
+ |
+   <ELSE: "else">
+ |
+   <DO: "do">
+ | 
+   <WHILE: "while">
+ | 
+   <PRINTLN: "println">  // must precede <ID> 
+ |
+   <PRINT: "print">
+ |
+   <READINT: "readint"> 
+ |
+   <UNSIGNED: (["0"-"9"])+>
+ |
+   <ID: ["A"-"Z","a"-"z"] (["A"-"Z","a"-"z","0"-"9"])*>
+ |
+   <ASSIGN: "=">
+ |
+   <SEMICOLON: ";">
+ |
+   <LEFTPAREN: "(">
+ |
+   <RIGHTPAREN: ")">
+ |
+   <PLUS: "+">
+ |
+   <MINUS: "-">
+ |
+   <TIMES: "*">
+ |
+   <DIVIDE: "/">
+ |
+   <LEFTBRACE: "{">
+ |
+   <RIGHTBRACE: "}">
+}
+//------------------------------------
+<IN_STRING>
+MORE:
+{
+   "\\\n"    // remove backslashed newline from image
+   {image.setLength(image.length() - 2);}
+ |
+   "\\\r"    // remove backslashed return from image
+   {image.setLength(image.length() - 2);}
+ |
+   "\\\r\n"  // remove backslashed return/newline from image
+   {image.setLength(image.length() - 3);}
+ |
+   "\\\""                   // matches backslash, quote
+ |
+   "\\\\"                   // matches backslash, backslash
+ |
+   <~["\"","\n","\r"]>      // matches everything else except ", \n, \r
+}
+//------------------------------------
+<IN_STRING>
+TOKEN:
+{
+   <STRING: "\"">                // matches terminating quote
+   // set image field in token to StringBuffer image and change state
+   {matchedToken.image = image.toString();} : DEFAULT
+}
+//------------------------------------
+<*>
+TOKEN:
+{
+   <ERROR: ~[]>                  // catch-all expxression
+}
+// Translation grammar for S4j and S4 ==================
+
+void program(): {}
+{  
+   statementList() 
+   {cg.endCode();}
+   <EOF>
+}
+//------------------------------
+void statementList(): {} 
+{
+   {if (getToken(1).kind == EOF) return;}
+   statement() 
+   statementList()  
+}    
+//------------------------------
+void statement(): {Token t; boolean outComment;} 
+{
+  try { 
+    {t = getToken(1);} // save current token
+	{outComment = true;}
+	(
+	   assignmentStatement()
+	 |
+	   printlnStatement()
+	 |
+	   printStatement()
+	 |
+	   nullStatement()
+	 |
+	   compoundStatement()
+	   {outComment = false;}
+	 |
+	   readintStatement()
+	 | 
+       whileStatement()
+     |
+       ifStatement()
+     |
+       doWhileStatement()  
+	)
+	// output tokens from t to current token
+	{if (outComment) makeComment(t, getToken(1));}
+ }
+ catch (ParseException e)
+ {
+    System.err.println(e.getMessage());
+	cg.emitString(e.getMessage());
+    while(getToken(1).kind != SEMICOLON &&
+    getToken(1).kind != EOF)
+    	getNextToken();
+    if(getToken(1).kind != EOF)
+    	getNextToken();
+ }
+}
+//------------------------------
+void assignmentStatement(): {Token t;}
+{
+   t=<ID>  
+   {st.enter(t.image);}
+   {cg.emitInstruction("pc", t.image);;}
+   "="
+   assignmentTail()
+   {cg.emitInstruction("stav");}
+}
+//------------------------------
+void assignmentTail(): {Token t;}
+{
+   LOOKAHEAD(2)
+   t=<ID>  
+   {st.enter(t.image);}
+   {cg.emitInstruction("pc", t.image);}
+   "="
+   assignmentTail()
+   {cg.emitInstruction("dupe");}
+   {cg.emitInstruction("rot");}
+   {cg.emitInstruction("stav");}
+ |
+   expr()
+   ";"
+}
+//------------------------------
+void printlnStatement(): {}
+{
+   "println"
+   "("
+   (
+     	printArg()
+   	|
+   		{}
+   ) 
+   {cg.emitInstruction("pc", "'\\n'");}
+   {cg.emitInstruction("aout");}
+   ")"
+   ";"
+}
+
+void printArg(): {Token t; String label;}
+{
+	t=<STRING>
+	{label=cg.getLabel();}
+	{cg.emitInstruction("pc", label);}
+   	{cg.emitInstruction("sout");}
+   	{cg.emitdw("^"+label, t.image);}
+  |
+  	expr()
+	{cg.emitInstruction("dout");}
+}
+
+//------------------------------
+void printStatement(): {}
+{
+   "print"
+   "("
+   printArg()
+   ")"
+   ";"
+}
+//------------------------------
+void nullStatement(): {}
+{
+   ";"
+}
+//------------------------------
+void compoundStatement(): {}
+{
+   "{"
+   {makeComment("{");}
+   compoundList()
+   "}"
+   {makeComment("}");}
+}
+//------------------------------
+void compoundList(): {}
+{
+   	{
+   	  if (getToken(1).kind == RIGHTBRACE)
+		  return;
+	}
+	statement()
+	compoundList()
+}
+//------------------------------
+void readintStatement(): {Token t;}
+{
+   "readint"
+   "("
+   t=<ID>
+   {st.enter(t.image);}
+   {cg.emitInstruction("pc", t.image);}
+   {cg.emitInstruction("din");}
+   {cg.emitInstruction("stav");}
+   ")"
+   ";"
+}
+//------------------------------
+void whileStatement(): {String label1, label2; Token t;}
+{
+   "while"
+   {label1=cg.getLabel();}
+   {cg.emitLabel(label1);}
+   "("
+   expr()
+   ")"
+   {label2=cg.getLabel();}
+   {cg.emitInstruction("jz", label2);}
+   statement()
+   {cg.emitInstruction("ja", label1);}
+   {cg.emitLabel(label2);}
+}
+//------------------------------
+void ifStatement(): {String label1;}
+{
+   "if"
+   "("
+   expr()
+   ")"
+   {label1=cg.getLabel();}
+   {cg.emitInstruction("jz", label1);}
+   statement()
+   elsePart(label1)
+}
+//------------------------------
+void elsePart(String label1): {String label2;}
+{
+   "else"
+   {label2=cg.getLabel();}
+   {cg.emitInstruction("ja", label2);}
+   {cg.emitLabel(label1);}
+   statement()
+   {cg.emitLabel(label2);}
+ |
+   {cg.emitLabel(label1);}
+}
+//------------------------------
+void doWhileStatement(): {String label;}
+{
+   "do"
+   {label = cg.getLabel();}
+   {cg.emitLabel(label);}
+   statement()
+   "while"
+   "("
+   expr()
+   ")"
+   {cg.emitInstruction("jnz", label);}
+   ";" 
+}
+//------------------------------
+void expr(): {}
+{
+   term()
+   termList()
+}
+//------------------------------
+void termList(): {}
+{
+   "+"
+   term()
+   {cg.emitInstruction("add");}
+   termList()
+|  
+   "-"
+   term()
+   {cg.emitInstruction("sub");}
+   termList()
+|  
+   {}
+}
+//------------------------------
+void term(): {}
+{
+   factor()
+   factorList()
+}
+//------------------------------
+void factorList(): {}
+{
+   "*"  
+   factor()
+   {cg.emitInstruction("mult");}
+   factorList()
+ |  
+   "/"  
+   factor()
+   {cg.emitInstruction("div");}
+   factorList()
+ |
+   {}
+}
+//------------------------------
+void factor(): {Token t;}
+{
+   t=<UNSIGNED>
+   {if (t.image.length() > 5 ||
+        		Integer.parseInt(t.image) > 32767)
+        	throw genEx("Expecting integer (-32768 to 32767)"); }
+   {cg.emitInstruction("pwc", t.image);}
+ |
+   t=<ID> 
+   {st.enter(t.image);}
+   {cg.emitInstruction("p", t.image);}
+ |
+   "(" expr() ")"
+ | 
+   "+"
+   factor()
+ |
+   "-" 
+   (
+      t=<UNSIGNED>
+      {if (t.image.length() > 5 ||
+        		Integer.parseInt(t.image) > 32767)
+        	throw genEx("Expecting integer (-32768 to 32767)");} 
+      {cg.emitInstruction("pwc", "-" + t.image);}
+    |
+      t=<ID>
+      {st.enter(t.image);}
+   	  {cg.emitInstruction("p", t.image);}
+      {cg.emitInstruction("neg");}
+    |
+      "(" 
+      expr() 
+      ")"
+      {cg.emitInstruction("neg");}  
+    |
+      (
+         LOOKAHEAD(1)  // suppress warning message
+         "+"
+      )+
+      (   
+         LOOKAHEAD(1)  // suppress warning message
+         "-"
+         factor()
+       |
+         factor()
+         {cg.emitInstruction("neg");}  
+      )
+    | 
+      "-"
+      factor()
+   )
+}
+

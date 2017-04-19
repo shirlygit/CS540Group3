@@ -1,0 +1,1000 @@
+// S7j.jj JavaCC input file for S7j compiler
+options 
+{
+  STATIC = false;         // generate non-static methods
+
+  // set to true to debug token manager
+  COMMON_TOKEN_ACTION = false;   
+
+  // pass parser reference to the token manager
+  TOKEN_MANAGER_USES_PARSER = true; 
+}                                // end of options block
+//======================================================
+PARSER_BEGIN(S7j)
+import java.io.*;
+import java.util.*;
+
+//======================================================
+interface SymTabConstants
+{
+	int LOCAL = 0;
+	int GLOBALVARIABLE = 1;
+	int EXTERNVARIABLE = 2;
+	int FUNCTIONDEFINITION = 3;
+	int FUNCTIONCALL = 4;
+}
+//======================================================
+class S7j implements SymTabConstants
+{
+  private PrintWriter outFile;   
+  private S7jSymTab st;
+  private S7jCodeGen cg;
+  private Stack<String> lw;
+  //-----------------------------------------
+  public static void main(String[] args) throws 
+                                             IOException
+  {
+    System.out.println("S7j compiler written by Hung PHAN, Shir Lie Ooi, Sen Shen");
+
+    if (args.length != 1)
+    {
+      System.err.println("Wrong number cmd line args");  
+      System.exit(1);
+    }
+
+    // build input and output file names
+    String inFileName = args[0] + ".s";
+    String outFileName = args[0] + ".a";
+
+    // construct file objects
+    FileInputStream inFile = 
+                       new FileInputStream(inFileName);
+    PrintWriter outFile = new PrintWriter(outFileName);
+
+    // identify compiler/author in output file
+    outFile.println("; from S7j compiler written by Hung PHAN, Shir Lie Ooi, Sen Shen");
+
+    // construct objects that make up compiler
+    S7jSymTab st = new S7jSymTab();
+    S7jCodeGen cg = new S7jCodeGen(outFile, st);
+    S7j parser = new S7j(inFile);
+
+    // initialize parser's instance variables
+    parser.outFile = outFile;
+    parser.st = st;   
+    parser.cg = cg;
+    parser.lw = new Stack<String>();
+	
+    try 
+    {
+      parser.program();
+    }
+    catch(ParseException e) 
+    {
+      System.err.println(e.getMessage());
+      outFile.println(e.getMessage());
+      outFile.close();
+      System.exit(1);
+    }
+
+    outFile.close();
+  }
+  //-----------------------------------------
+  // If COMMON_TOKEN_ACTION is true, the token manager 
+  // calls makeComment for each token to create the
+  // token trace.
+  //
+  public void makeComment(Token t)
+  {
+    outFile.printf(
+      "; kd=%3d bL=%3d bC=%3d eL=%3d eC=%3d im= %s%n",
+       t.kind, t.beginLine, t.beginColumn, t.endLine, 
+       t.endColumn, t.image);
+  }
+  
+  // second makeComment method
+  public void makeComment(Token t1, Token t2)
+  {
+	outFile.print("; "); // start comment
+	while (t1 != t2)
+	{
+		outFile.print(t1.image + " ");
+		t1 = t1.next;
+	}
+	outFile.println(); // terminate comment
+  }
+  
+  //third makeComment method
+  public void makeComment(String s)
+  {
+	outFile.println("; " + s);
+  }
+  //-----------------------------------------
+  // Construct and return an exception that contains
+  // a message consisting of the image of the current
+  // token, its location, and the expected tokens.
+  //
+  public ParseException genEx(String errorMessage)
+  {
+    return new ParseException("Encountered \"" + 
+      getToken(1).image + "\" on line " + 
+      getToken(1).beginLine + ", column " + 
+      getToken(1).beginColumn + "." +
+      System.getProperty("line.separator") + 
+      errorMessage);
+  }
+}                                          // end of S7j
+//======================================================
+class S7jSymTab implements SymTabConstants
+{
+  private ArrayList<String> symbol;
+  private ArrayList<Integer> relAdd;
+  public ArrayList<Integer> category;
+  //-----------------------------------------
+  public S7jSymTab()
+  {
+    symbol = new ArrayList<String>();
+    relAdd = new ArrayList<Integer>();
+    category = new ArrayList<Integer>();
+  }
+  //-----------------------------------------
+  public void enter(S7j s, String sym, int ra, int cat) throws ParseException
+  {
+	  int index = symbol.indexOf(sym);
+	  if (index >= 0) {
+		  int oldCat = category.get(index);
+		  if(cat == FUNCTIONCALL &&
+				  oldCat >= FUNCTIONDEFINITION) {
+			  return;
+		  }
+		  if(cat == FUNCTIONDEFINITION &&
+				  oldCat == FUNCTIONCALL) {
+			  category.set(index, FUNCTIONDEFINITION);
+			  return;
+		  }
+		  if(cat == LOCAL && (oldCat == GLOBALVARIABLE
+				  || oldCat == EXTERNVARIABLE));
+		  else throw s.genEx("Duplicate symbol");
+	  }
+	  symbol.add(sym); 
+	  relAdd.add(ra); 
+	  category.add(cat);
+  }
+  //-----------------------------------------
+  public int find(S7j s, String sym) throws ParseException
+  {
+	  int index = symbol.lastIndexOf(sym);
+	  if(index >= 0) 
+		  return index;
+	  else 
+		  throw s.genEx("Undeclared symbol");
+  }
+  //-----------------------------------------
+  public String getSymbol(int i)
+  {
+    return symbol.get(i);
+  }
+  //-----------------------------------------
+  public int getRelAdd(int index)
+  {
+	  return relAdd.get(index);
+  }
+  //-----------------------------------------
+  public int getCategory(int index)
+  {
+	  return category.get(index);
+  }
+  //-----------------------------------------
+  public int getSize()
+  {
+    return symbol.size();
+  }
+  //-----------------------------------------
+  public void localRemove()
+  {
+	  for (int i = symbol.size() - 1; i >= 0; i--)
+		  if(category.get(i) == LOCAL)
+		  {
+			  symbol.remove(i);
+			  relAdd.remove(i);
+			  category.remove(i);
+		  }
+  }
+}                                    // end of S7jSymTab
+//======================================================
+class S7jCodeGen implements SymTabConstants
+{
+  private PrintWriter outFile;
+  private S7jSymTab st;
+  private int labelNumber;
+  //-----------------------------------------
+  public S7jCodeGen(PrintWriter outFile, S7jSymTab st)
+  {
+    this.outFile = outFile;
+    this.st = st;
+    this.labelNumber = 0;
+  }
+  //-----------------------------------------
+  public void emitInstruction(String op)
+  {
+    outFile.printf("          %-6s%n", op); 
+  }
+  //-----------------------------------------
+  public void emitInstruction(String op, String opnd)
+  {
+    outFile.printf(
+                  "          %-6s      %s%n", op, opnd); 
+  }
+  //-----------------------------------------
+  public void emitdw(String label, String value)
+  {
+    outFile.printf(
+             "%-9s dw        %s%n", label + ":", value);
+  }
+  //-----------------------------------------
+  public void emitString(String s)
+  {
+	outFile.println(s);
+  }
+  //-----------------------------------------
+  public void emitLabel(String label)
+  {
+	  outFile.printf("%-9s%n", label + ":");
+  }
+  //-----------------------------------------
+  public String getLabel()
+  {
+	  return "@L" + labelNumber++;
+  }
+  //-----------------------------------------  
+  public void push(int p)
+  {
+	  if(st.getCategory(p) != LOCAL)
+		  emitInstruction("p", st.getSymbol(p));
+	  else
+		  emitInstruction("pr", ""+st.getRelAdd(p));
+  }
+  //----------------------------------------- 
+  public void pushAddress(int p)
+  {
+	  if(st.getCategory(p) != LOCAL)
+		  emitInstruction("pc", st.getSymbol(p));
+	  else
+		  emitInstruction("cora", ""+st.getRelAdd(p));
+  }
+  //-----------------------------------------
+  public void endCode()
+  {
+    outFile.println();
+    emitInstruction("halt");
+
+    int size = st.getSize();
+    // emit dw for each symbol in the symbol table
+    for (int i=0; i < size; i++) 
+    	if(st.getCategory(i) == FUNCTIONCALL)
+    		emitInstruction("extern", st.getSymbol(i));
+  }
+}                             // end of S7jCodeGen class
+PARSER_END(S7j)
+
+// Specification of the S7j token manager ==============
+
+TOKEN_MGR_DECLS:
+{
+  // called for each token returned to parser
+  void CommonTokenAction(Token t)
+  {
+    parser.makeComment(t);
+  }
+}
+//------------------------------
+SKIP:  // these tokens are not returned to parser
+{
+   " " 
+ | 
+   "\n" 
+ | 
+   "\r" 
+ | 
+   "\t"
+ |
+   <"//" (~["\n", "\r"])*>
+ |
+   <"/*" (~["*"])* "*" ("*" | ~["*","/"] (~["*"])* "*")* "/">
+}
+//------------------------------
+MORE:
+{
+   "\"": IN_STRING      // matches initial quote in string
+}
+//------------------------------
+TOKEN:  // these tokens are returned to parser
+{
+   <EXTERN: "extern">
+ |
+   <INT: "int">
+ |
+   <VOID: "void">
+ |
+   <RETURN: "return">
+ |  
+   <IF: "if">
+ |
+   <ELSE: "else">
+ |
+   <DO: "do">
+ | 
+   <WHILE: "while">
+ |
+   <BREAK: "break">
+ | 
+   <PRINTLN: "println">  // must precede <ID> 
+ |
+   <PRINT: "print">
+ |
+   <READINT: "readint"> 
+ |
+   <UNSIGNED: (["0"-"9"])+>
+ |
+   <ID: ["A"-"Z","a"-"z"] (["A"-"Z","a"-"z","0"-"9"])*>
+ |
+   <LESSER: "<">
+ |
+   <LESSEQ: "<=">
+ |
+   <GREATER: ">">
+ |
+   <GREATEQ: ">=">
+ |
+   <EQUAL: "==">
+ |
+   <NOTEQ: "!=">
+ |
+   <ASSIGN: "=">
+ |
+   <SEMICOLON: ";">
+ |
+   <LEFTPAREN: "(">
+ |
+   <RIGHTPAREN: ")">
+ |
+   <PLUS: "+">
+ |
+   <MINUS: "-">
+ |
+   <TIMES: "*">
+ |
+   <DIVIDE: "/">
+ |
+   <REMAINDER: "%">
+ |
+   <LEFTBRACE: "{">
+ |
+   <RIGHTBRACE: "}">
+ |
+   <COMMA: ",">
+}
+//------------------------------------
+<IN_STRING>
+MORE:
+{
+   "\\\n"    // remove backslashed newline from image
+   {image.setLength(image.length() - 2);}
+ |
+   "\\\r"    // remove backslashed return from image
+   {image.setLength(image.length() - 2);}
+ |
+   "\\\r\n"  // remove backslashed return/newline from image
+   {image.setLength(image.length() - 3);}
+ |
+   "\\\""                   // matches backslash, quote
+ |
+   "\\\\"                   // matches backslash, backslash
+ |
+   <~["\"","\n","\r"]>      // matches everything else except ", \n, \r
+}
+//------------------------------------
+<IN_STRING>
+TOKEN:
+{
+   <STRING: "\"">                // matches terminating quote
+   // set image field in token to StringBuffer image and change state
+   {matchedToken.image = image.toString();} : DEFAULT
+}
+//------------------------------------
+<*>
+TOKEN:
+{
+   <ERROR: ~[]>                  // catch-all expxression
+}
+// Translation grammar for S7j and S7 ==================
+
+void program(): {}
+{
+   programUnitList()
+   {cg.endCode();}
+   <EOF>
+}
+//------------------------------
+void programUnitList(): {}
+{ 
+   {if (getToken(1).kind == EOF) return;}
+   programUnit()
+   programUnitList()
+}
+//------------------------------
+void programUnit(): {}
+{
+  try
+ {
+	   externDeclaration()
+	 |
+	   (
+	     LOOKAHEAD(3)
+	       functionIntDefinition()
+		 |
+		   globalDeclaration()
+		   
+	   )
+	 |
+	   functionVoidDefinition()
+ }
+ catch (ParseException e)
+ {
+    System.err.println(e.getMessage());
+	cg.emitString(e.getMessage());
+    while(getToken(1).kind != SEMICOLON &&
+    getToken(1).kind != EOF)
+    	getNextToken();
+    if(getToken(1).kind != EOF)
+    	getNextToken();
+ }
+} 
+//------------------------------
+void externDeclaration(): {Token t;}
+{
+   "extern"
+   "int"
+   t=<ID>
+   {st.enter(this, t.image, 0, EXTERNVARIABLE);}
+   {cg.emitInstruction("extern", t.image);}
+   (
+      ","
+      t=<ID>
+      {st.enter(this, t.image, 0, EXTERNVARIABLE);}
+      {cg.emitInstruction("extern", t.image);}
+   )*
+   ";"
+}
+//------------------------------
+void globalDeclaration(): {}
+{
+   "int" 
+   global()            // process one global variable        
+   (
+      ","
+      global()         // process one global variable
+   )* 
+   ";"
+}
+//------------------------------
+void global(): {Token t1, t2; String initVal;}
+{
+   t1=<ID>
+   {cg.emitInstruction("public", t1.image);}
+   {initVal="0";}
+   (                // do if global variable initialized
+      "=" 
+      {initVal = "";}
+      (<PLUS> | <MINUS> {initVal = "-";})? 
+      t2=<UNSIGNED>
+      {initVal = initVal + t2.image;}
+   )?
+   {st.enter(this, t1.image, 0, GLOBALVARIABLE);}
+   {cg.emitdw(t1.image, initVal);}
+}
+//------------------------------
+void functionVoidDefinition(): {Token t;}
+{ 
+   "void" 
+   t=<ID>
+   {cg.emitString(
+      "; =============== start of function " + t.image);}
+   {st.enter(this, t.image, 0, FUNCTIONDEFINITION);}
+   {cg.emitInstruction("public", t.image);}
+   {cg.emitLabel(t.image);}
+   "(" 
+   (parameterList())?
+   ")"
+   "{"
+   {cg.emitInstruction("esba");}
+   localDeclarations()
+   statementList()
+   "}"
+   {cg.emitInstruction("reba");}
+   {cg.emitInstruction("ret");}
+   {cg.emitString(
+      "; =============== end of function " + t.image);}
+   // remove locals from symbol table
+   {st.localRemove();} 
+}
+//------------------------------
+void functionIntDefinition(): {Token t; int index = 0;}
+{ 
+   "int" 
+   t=<ID>
+   {cg.emitString(
+      "; =============== start of function " + t.image);}
+   {st.enter(this, t.image, 0, FUNCTIONDEFINITION);}
+   {cg.emitInstruction("public", t.image);}
+   {cg.emitLabel(t.image);}
+   "(" 
+   (index = parameterList())?
+   ")"
+   "{"
+   {cg.emitInstruction("esba");}
+   localDeclarations()
+   statementList()
+   "return"
+   {cg.emitInstruction("cora", ""+ ((index == 0) ? 2 : index+1));}
+   expr()
+   {cg.emitInstruction("stav");}
+   ";"
+   "}"
+   {cg.emitInstruction("reba");}
+   {cg.emitInstruction("ret");}
+   {cg.emitString(
+      "; =============== end of function " + t.image);}
+   // remove locals from symbol table
+   {st.localRemove();} 
+}
+//------------------------------
+int parameterList(): {Token t; int p;}
+{
+   t=parameter() 
+   p=parameterR()  
+   {st.enter(this, t.image, p, LOCAL);}
+   {return p;}
+}
+//------------------------------
+Token parameter(): {Token t;}
+{
+   "int" 
+   t=<ID>
+   {return t;}
+}
+//------------------------------
+int parameterR(): {Token t; int p;}
+{
+   ","
+   t = parameter()
+   p = parameterR()      // p is the rel address
+   {st.enter(this, t.image, p, LOCAL);}
+   {return p + 1;}       // return next relative address
+ |
+   {return 2;}           // at end of parameter list 
+}
+//------------------------------
+void localDeclarations(): {int relativeAddress = -1;}
+{ 
+   (
+      "int" 
+      local(relativeAddress--)    // process 1 local var
+      (
+         ","
+         local(relativeAddress--) // process 1 local var
+      )*
+      ";"
+   )*
+}
+//------------------------------
+void local(int relativeAddress): {Token t; String sign; String label;}
+{
+   t=<ID>
+   {st.enter(this, t.image, relativeAddress, LOCAL);}
+   (
+      (              // do if local variable initialized
+         "=" 
+         {sign = "";}
+         (<PLUS> | <MINUS> {sign = "-"; })?
+         t=<UNSIGNED>
+         {label=cg.getLabel();}
+         {cg.emitInstruction("p", label);}
+         {cg.emitdw("^"+label, sign + t.image);}
+      )
+     |
+      {cg.emitInstruction("asp", "-1");}
+   )
+}
+//------------------------------
+void statementList(): {}
+{
+   {if (getToken(1).kind == RIGHTBRACE || getToken(1).kind == RETURN) return;}
+   statement()
+   statementList()
+}
+//------------------------------
+void statement(): {Token t; boolean outComment;} 
+{
+  try { 
+    {t = getToken(1);} // save current token
+	{outComment = true;}
+	( LOOKAHEAD(2)
+   	   assignmentStatement()     // starts with <ID>
+ 	 |
+   	   functionCall()            // also starts with <ID>
+   	   ";"
+ 	 |
+	   printlnStatement()
+	 |
+	   printStatement()
+	 |
+	   nullStatement()
+	 |
+	   compoundStatement()
+	   {outComment = false;}
+	 |
+	   readintStatement()
+	 | 
+       whileStatement()
+     |
+       ifStatement()
+     |
+       doWhileStatement()
+     |
+       "break"
+       {cg.emitInstruction("ja", lw.peek());}  
+	)
+	// output tokens from t to current token
+	{if (outComment) makeComment(t, getToken(1));}
+ }
+ catch (ParseException e)
+ {
+    System.err.println(e.getMessage());
+	cg.emitString(e.getMessage());
+    while(getToken(1).kind != SEMICOLON &&
+    getToken(1).kind != EOF)
+    	getNextToken();
+    if(getToken(1).kind != EOF)
+    	getNextToken();
+ }
+}
+//------------------------------
+void assignmentStatement(): {Token t; int index;}
+{
+   t=<ID>  
+   {index=st.find(this, t.image);}
+   {cg.pushAddress(index);}
+   "="
+   assignmentTail()
+   {cg.emitInstruction("stav");}
+}
+//------------------------------
+void assignmentTail(): {Token t; int index;}
+{
+   LOOKAHEAD(2)
+   t=<ID>  
+   {index=st.find(this, t.image);}
+   {cg.pushAddress(index);}
+   "="
+   assignmentTail()
+   {cg.emitInstruction("dupe");}
+   {cg.emitInstruction("rot");}
+   {cg.emitInstruction("stav");}
+ |
+   expr()
+   ";"
+}
+//------------------------------
+void printlnStatement(): {}
+{
+   "println"
+   "("
+   (
+     	printArg()
+   	|
+   		{}
+   ) 
+   {cg.emitInstruction("pc", "'\\n'");}
+   {cg.emitInstruction("aout");}
+   ")"
+   ";"
+}
+
+void printArg(): {Token t; String label;}
+{
+	t=<STRING>
+	{label=cg.getLabel();}
+	{cg.emitInstruction("pc", label);}
+   	{cg.emitInstruction("sout");}
+   	{cg.emitdw("^"+label, t.image);}
+  |
+  	compareStatement()
+	{cg.emitInstruction("dout");}
+}
+
+//------------------------------
+void printStatement(): {}
+{
+   "print"
+   "("
+   printArg()
+   ")"
+   ";"
+}
+//------------------------------
+void nullStatement(): {}
+{
+   ";"
+}
+//------------------------------
+void compoundStatement(): {}
+{
+   "{"
+   {makeComment("{");}
+   compoundList()
+   "}"
+   {makeComment("}");}
+}
+//------------------------------
+void compoundList(): {}
+{
+   	{
+   	  if (getToken(1).kind == RIGHTBRACE)
+		  return;
+	}
+	statement()
+	compoundList()
+}
+//------------------------------
+void readintStatement(): {Token t; int index;}
+{
+   "readint"
+   "("
+   t=<ID>
+   {index=st.find(this, t.image);}
+   {cg.pushAddress(index);}
+   {cg.emitInstruction("din");}
+   {cg.emitInstruction("stav");}
+   ")"
+   ";"
+}
+//------------------------------
+void compareStatement(): {Token t;}
+{
+  expr()
+  {
+    if(getToken(1).kind == LESSER || getToken(1).kind == LESSEQ ||
+  		getToken(1).kind == GREATER || getToken(1).kind == GREATEQ ||
+  		getToken(1).kind == EQUAL || getToken(1).kind == NOTEQ)
+  	{
+  	  t = getToken(1);
+  	  jj_consume_token(t.kind);
+  	  expr();
+  	  switch(t.kind)
+  	  {
+  	    case LESSER:
+			cg.emitInstruction("cmps", "4");
+			break;
+		case LESSEQ:
+			cg.emitInstruction("cmps", "6");
+			break;
+		case GREATER:
+			cg.emitInstruction("cmps", "1");
+			break;
+		case GREATEQ:
+			cg.emitInstruction("cmps", "3");
+			break;
+		case EQUAL:
+			cg.emitInstruction("cmps", "2");
+			break;
+		case NOTEQ:
+			cg.emitInstruction("cmps", "5");
+			break;
+  	  }
+  	}
+  }
+}
+//------------------------------
+void whileStatement(): {String label1, label2; Token t;}
+{
+   "while"
+   {label1=cg.getLabel();}
+   {cg.emitLabel(label1);}
+   "("
+   compareStatement()
+   ")"
+   {label2=cg.getLabel();}
+   {cg.emitInstruction("jz", label2);}
+   {lw.push(label2);}
+   statement()
+   {cg.emitInstruction("ja", label1);}
+   {cg.emitLabel(label2);}
+   {lw.pop();} 
+}
+//------------------------------
+void ifStatement(): {String label1;}
+{
+   "if"
+   "("
+   compareStatement()
+   ")"
+   {label1=cg.getLabel();}
+   {cg.emitInstruction("jz", label1);}
+   statement()
+   elsePart(label1)
+}
+//------------------------------
+void elsePart(String label1): {String label2;}
+{
+   "else"
+   {label2=cg.getLabel();}
+   {cg.emitInstruction("ja", label2);}
+   {cg.emitLabel(label1);}
+   statement()
+   {cg.emitLabel(label2);}
+ |
+   {cg.emitLabel(label1);}
+}
+//------------------------------
+void doWhileStatement(): {String label1, label2;}
+{
+   "do"
+   {label1 = cg.getLabel();}
+   {label2 = cg.getLabel();}
+   {cg.emitLabel(label1);}
+   {lw.push(label2);}
+   statement()
+   "while"
+   "("
+   compareStatement()
+   ")"
+   {cg.emitInstruction("jnz", label1);}
+   {cg.emitLabel(label2);}
+   {lw.pop();}
+   ";" 
+}
+//------------------------------
+void functionCall(): {Token t; int count;}
+{
+   t=<ID>
+   {st.enter(this, t.image, 0, FUNCTIONCALL);}
+   "("
+   {count = 0;}
+   (count = argumentList())?
+   {cg.emitInstruction("call", t.image);}
+   {
+      if (count > 0)
+         cg.emitInstruction("asp", 
+                               Integer.toString(count));
+   }
+   ")"
+}
+//------------------------------
+int argumentList(): {int count;}
+{
+   expr()
+   {count = 1;}
+   (
+      ","
+      expr()
+      {count++;}
+   )*
+   {return count;}
+}
+//------------------------------
+void expr(): {}
+{
+   term()
+   termList()
+}
+//------------------------------
+void termList(): {}
+{
+   "+"
+   term()
+   {cg.emitInstruction("add");}
+   termList()
+|  
+   "-"
+   term()
+   {cg.emitInstruction("sub");}
+   termList()
+|  
+   {}
+}
+//------------------------------
+void term(): {}
+{
+   factor()
+   factorList()
+}
+//------------------------------
+void factorList(): {}
+{
+   "*"  
+   factor()
+   {cg.emitInstruction("mult");}
+   factorList()
+ |  
+   "/"  
+   factor()
+   {cg.emitInstruction("div");}
+   factorList()
+ |
+   "%"  
+   factor()
+   {cg.emitInstruction("rem");}
+   factorList()
+ | 
+   {}
+}
+//------------------------------
+void factor(): {Token t; int index; String label;}
+{
+   t=<UNSIGNED>
+   {if (t.image.length() > 5 ||
+        		Integer.parseInt(t.image) > 32767)
+        	throw genEx("Expecting integer (-32768 to 32767)"); }
+   {label=cg.getLabel();}
+   {cg.emitInstruction("p", label);}
+   {cg.emitdw("^"+label, t.image);}
+ |
+   (
+     LOOKAHEAD(2)
+	   {cg.emitInstruction("asp", "-1");}
+       functionCall()
+	 |
+	   t=<ID> 
+	   {index=st.find(this, t.image);}
+	   {cg.push(index);}
+   )
+ |
+   "(" expr() ")"
+ | 
+   "+"
+   factor()
+ |
+   "-" 
+   (
+      t=<UNSIGNED>
+      {if (t.image.length() > 5 ||
+        		Integer.parseInt(t.image) > 32767)
+        	throw genEx("Expecting integer (-32768 to 32767)");} 
+      {label=cg.getLabel();}
+      {cg.emitInstruction("p", label);}
+      {cg.emitdw("^"+label, "-" + t.image);}
+    |
+      (
+	     LOOKAHEAD(2)
+	       {cg.emitInstruction("asp", "-1");}
+	       functionCall()
+		 |
+		   t=<ID> 
+		   {index=st.find(this, t.image);}
+		   {cg.push(index);}
+     )
+      {cg.emitInstruction("neg");}
+    |
+      "(" 
+      expr() 
+      ")"
+      {cg.emitInstruction("neg");}  
+    |
+      (
+         LOOKAHEAD(1)  // suppress warning message
+         "+"
+      )+
+      (   
+         LOOKAHEAD(1)  // suppress warning message
+         "-"
+         factor()
+       |
+         factor()
+         {cg.emitInstruction("neg");}  
+      )
+    | 
+      "-"
+      factor()
+   )
+}

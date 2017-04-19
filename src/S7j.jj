@@ -15,7 +15,7 @@ import java.io.*;
 import java.util.*;
 
 //======================================================
-interface SymTabConstants
+interface S7jSymTabConstants
 {
 	int LOCAL = 0;
 	int GLOBALVARIABLE = 1;
@@ -24,7 +24,7 @@ interface SymTabConstants
 	int FUNCTIONCALL = 4;
 }
 //======================================================
-class S7j implements SymTabConstants
+class S7j implements S7jSymTabConstants
 {
   private PrintWriter outFile;   
   private S7jSymTab st;

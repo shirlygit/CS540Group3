@@ -302,6 +302,8 @@ SKIP:  // these tokens are not returned to parser
    <"//" (~["\n", "\r"])*>
  |
    <"/*" (~["*"])* "*" ("*" | ~["*","/"] (~["*"])* "*")* "/">
+ |
+   <"/**" (~["*"])* "*" ("*" | ~["*","/"] (~["*"])* "*")* "/">
 }
 //------------------------------
 MORE:
@@ -326,7 +328,7 @@ TOKEN:  // these tokens are returned to parser
    <SWITCH: "switch">
  |
    <CASE: "case">
-   |
+ |
    <DEFAULT2: "default">  
  |
    <DO: "do">
@@ -345,13 +347,13 @@ TOKEN:  // these tokens are returned to parser
  |
    <ID: ["A"-"Z","a"-"z"] (["A"-"Z","a"-"z","0"-"9"])*>
  |
-   <LESSER: "<">
- |
    <LESSEQ: "<=">
  |
-   <GREATER: ">">
+   <LESSER: "<">
  |
    <GREATEQ: ">=">
+ |
+   <GREATER: ">">
  |
    <EQUAL: "==">
  |
@@ -374,6 +376,20 @@ TOKEN:  // these tokens are returned to parser
    <DIVIDE: "/">
  |
    <REMAINDER: "%">
+ |
+   <OR: "|">
+ | 
+   <XOR: "^">
+ | 
+   <AND: "&">
+ |
+   <COMPLEMENT: "~">
+ |
+   <SHIFTRIGHT: ">>>">
+ |
+   <SHIFTRIGHTS: ">>">
+ |
+   <SHIGTLEFT: "<<"> 
  |
    <LEFTBRACE: "{">
  |
@@ -710,7 +726,8 @@ void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut
 	{labelElse=cg.getLabel();}
 	{labelOut=cg.getLabel();} 
 	(
-	  LOOKAHEAD(1)	  "case"
+	  LOOKAHEAD(1)
+	  "case"
 	  t = <UNSIGNED>
 	  ":"
 	  { cg.emitLabel(labelElse);}	  
@@ -799,7 +816,7 @@ void printlnStatement(): {}
    (
      	printArg()
    	|
-   		{}
+   	{}
    ) 
    {cg.emitInstruction("pc", "'\\n'");}
    {cg.emitInstruction("aout");}
@@ -815,7 +832,7 @@ void printArg(): {Token t; String label;}
    	{cg.emitInstruction("sout");}
    	{cg.emitdw("^"+label, t.image);}
   |
-  	compareStatement()
+  	expr()
 	{cg.emitInstruction("dout");}
 }
 
@@ -866,49 +883,13 @@ void readintStatement(): {Token t; int index;}
    ";"
 }
 //------------------------------
-void compareStatement(): {Token t;}
-{
-  expr()
-  {
-    if(getToken(1).kind == LESSER || getToken(1).kind == LESSEQ ||
-  		getToken(1).kind == GREATER || getToken(1).kind == GREATEQ ||
-  		getToken(1).kind == EQUAL || getToken(1).kind == NOTEQ)
-  	{
-  	  t = getToken(1);
-  	  jj_consume_token(t.kind);
-  	  expr();
-  	  switch(t.kind)
-  	  {
-  	    case LESSER:
-			cg.emitInstruction("cmps", "4");
-			break;
-		case LESSEQ:
-			cg.emitInstruction("cmps", "6");
-			break;
-		case GREATER:
-			cg.emitInstruction("cmps", "1");
-			break;
-		case GREATEQ:
-			cg.emitInstruction("cmps", "3");
-			break;
-		case EQUAL:
-			cg.emitInstruction("cmps", "2");
-			break;
-		case NOTEQ:
-			cg.emitInstruction("cmps", "5");
-			break;
-  	  }
-  	}
-  }
-}
-//------------------------------
 void whileStatement(): {String label1, label2; Token t;}
 {
    "while"
    {label1=cg.getLabel();}
    {cg.emitLabel(label1);}
    "("
-   compareStatement()
+   expr()
    ")"
    {label2=cg.getLabel();}
    {cg.emitInstruction("jz", label2);}
@@ -923,7 +904,7 @@ void ifStatement(): {String label1;}
 {
    "if"
    "("
-   compareStatement()
+   expr()
    ")"
    {label1=cg.getLabel();}
    {cg.emitInstruction("jz", label1);}
@@ -953,7 +934,7 @@ void doWhileStatement(): {String label1, label2;}
    statement()
    "while"
    "("
-   compareStatement()
+   expr()
    ")"
    {cg.emitInstruction("jnz", label1);}
    {cg.emitLabel(label2);}
@@ -991,8 +972,143 @@ int argumentList(): {int count;}
 //------------------------------
 void expr(): {}
 {
-   term()
-   termList()
+   compareOR()
+   compareORList()
+}
+//------------------------------
+void compareORList(): {}
+{
+  	"|"
+  	compareOR()
+  	{cg.emitInstruction("or");}
+  	compareORList()
+  | 
+	{}
+}
+//------------------------------
+void compareOR(): {}
+{
+  compareXOR()
+  compareXORList()
+}
+//------------------------------
+void compareXORList(): {}
+{
+	"^"
+  	compareOR()
+  	{cg.emitInstruction("xor");}
+  	compareORList()
+  | 
+	{}
+}
+//------------------------------
+void compareXOR(): {}
+{
+  compareAND()
+  compareANDList()
+}
+//------------------------------
+void compareANDList(): {}
+{
+  	"&"
+  	compareOR()
+  	{cg.emitInstruction("and");}
+  	compareORList()
+  | 
+	{}
+}
+//------------------------------
+void compareAND(): {}
+{
+  compareEQ()
+  compareEQList()
+}
+//------------------------------
+void compareEQList(): {}
+{
+   "=="
+   compareEQ()
+   {cg.emitInstruction("cmps", "2");}
+   compareEQList()
+ |
+   "!="
+   compareEQ()
+   {cg.emitInstruction("cmps", "5");}
+   compareEQList()
+ |
+   {}
+}
+//------------------------------
+void compareEQ(): {}
+{
+  compareLB()
+  compareLBList()
+}
+//------------------------------
+void compareLBList(): {}
+{
+   "<="
+   compareLB()
+   {cg.emitInstruction("cmps", "6");}
+   compareLBList()
+ | 
+   "<"
+   compareLB()
+   {cg.emitInstruction("cmps", "4");}
+   compareLBList()
+ |
+   ">="
+   compareLB()
+   {cg.emitInstruction("cmps", "3");}
+   compareLBList()
+ |
+   ">"
+   compareLB()
+   {cg.emitInstruction("cmps", "1");}
+   compareLBList()
+ |
+   {}
+}
+//------------------------------
+void compareLB(): {}
+{
+  shift()
+  shiftList()
+}
+//------------------------------
+void shiftList(): {Token t;}
+{
+  	">>>"
+  	t = <UNSIGNED>
+  	{if (t.image.length() > 5 ||
+        		Integer.parseInt(t.image) > 32767)
+        	throw genEx("Expecting integer (-32768 to 32767)"); }
+  	{cg.emitInstruction("shrl", t.image);}
+  	shiftList()
+ |
+ 	">>"
+  	t = <UNSIGNED>
+  	{if (t.image.length() > 5 ||
+        		Integer.parseInt(t.image) > 32767)
+        	throw genEx("Expecting integer (-32768 to 32767)"); }
+  	{cg.emitInstruction("shra", t.image);}
+  	shiftList()
+ |
+ 	"<<"
+  	t = <UNSIGNED>
+  	{if (t.image.length() > 5 ||
+        		Integer.parseInt(t.image) > 32767)
+        	throw genEx("Expecting integer (-32768 to 32767)"); }
+  	{cg.emitInstruction("shll", t.image);}
+  	shiftList()
+ |
+ 	{}
+}
+//------------------------------
+void shift(): {}
+{
+  term()
+  termList()
 }
 //------------------------------
 void termList(): {}
@@ -1035,8 +1151,16 @@ void factorList(): {}
  | 
    {}
 }
+void factor(): { }
+{
+    "~"
+	complement()
+	{cg.emitInstruction("flip");}
+  | 
+	complement()
+}
 //------------------------------
-void factor(): {Token t; int index; String label;}
+void complement(): {Token t; int index; String label;}
 {
    t=<UNSIGNED>
    {if (t.image.length() > 5 ||
@@ -1059,7 +1183,7 @@ void factor(): {Token t; int index; String label;}
    "(" expr() ")"
  | 
    "+"
-   factor()
+   complement()
  |
    "-" 
    (
@@ -1094,13 +1218,13 @@ void factor(): {Token t; int index; String label;}
       (   
          LOOKAHEAD(1)  // suppress warning message
          "-"
-         factor()
+         complement()
        |
-         factor()
+         complement()
          {cg.emitInstruction("neg");}  
       )
     | 
       "-"
-      factor()
+      complement()
    )
 }

@@ -700,23 +700,26 @@ void assignmentTail(): {Token t; int index;}
 }
 
 //------------------------------
-void switchStatement(): {Token t;String label,label2;int i1; }{
+void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut2;int i1,index; }{
 	"switch"
 	"("
 	expr()
 	")"
 	"{"
+	{index=0;}
+	{labelElse=cg.getLabel();}
+	{labelOut=cg.getLabel();} 
 	(
 	  LOOKAHEAD(1)	  "case"
 	  t = <UNSIGNED>
 	  ":"
+	  { cg.emitLabel(labelElse);}	  
 	  { cg.emitInstruction("dupe");}
 	  { i1=Integer.parseInt(t.image);}
-	  { cg.emitInstruction("p",t.image);}
-	  { cg.emitInstruction("cmps","4");}
-	  {label=cg.getLabel();}        
-	  { cg.emitInstruction("pnz",label);}
-	  { cg.emitLabel(label);}
+	  { cg.emitInstruction("pwc",t.image);}
+	  { cg.emitInstruction("cmps","2");}
+	  {labelElse=cg.getLabel();}        
+	  { cg.emitInstruction("jz",labelElse);}	  
 	  ( LOOKAHEAD(2)
    	   assignmentStatement()     // starts with <ID>
  	 |
@@ -740,14 +743,15 @@ void switchStatement(): {Token t;String label,label2;int i1; }{
      |
        doWhileStatement()
      )
-          	  			
+     { index++;}
+     { cg.emitInstruction("ja",labelOut);}	  			
 	)+
 	(
 	  LOOKAHEAD(2)
 	  "default"
 	  ":"
-	  {label2=cg.getLabel();}
-	  { cg.emitLabel(label2);}
+  	{ cg.emitLabel(labelElse);}	  
+
 	  
 	  ( LOOKAHEAD(2)
    	   assignmentStatement()     // starts with <ID>
@@ -772,14 +776,19 @@ void switchStatement(): {Token t;String label,label2;int i1; }{
      |
        doWhileStatement()
      )
+     { cg.emitInstruction("ja",labelOut);}	  			
           	  			
 	)?
 	"}"
+
 	
-	{label2=cg.getLabel();}
-   {cg.emitInstruction("ja", label2);}   
-   {cg.emitLabel(label2);} 
-	
+	{ cg.emitLabel(labelOut);}
+	{ cg.emitInstruction("pwc","10000");}
+	{ cg.emitInstruction("cmps","2");}
+	{labelOut2=cg.getLabel();}    
+	{ cg.emitInstruction("jz",labelOut2);}	
+	{ cg.emitInstruction("ja",labelOut2);}
+	{ cg.emitLabel(labelOut2);}		
 }
 
 //------------------------------

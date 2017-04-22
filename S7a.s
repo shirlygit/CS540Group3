@@ -8,31 +8,31 @@ int x, z = -10, zero;
 extern int e;
 void main()
 {
-   int y, z;
+   int y, z, a = 60, b = 13, j;
 
    x = -4 + -2;
    //this switch case makes y equals to x, results to all correct tests
-   
-   switch (x) {	
+
+   switch (x) {
 	case +-6:
 		x = 2;
 		y = x;
-		break;	
+		break;
 	default:
 		y = 8 * x;
    }
-   
-   switch (x) {	
+
+   switch (x) {
 	case 2:
 		y = x;
 		break;
 	case 4:
 		y = 4 * x;
-		break;	
+		break;
 	default:
 		y = 8 * x;
    }
-   
+
    switch (x) {
 	case 1:
 	case +2:
@@ -40,18 +40,22 @@ void main()
 		break;
 	case 4:
 		y = 4 * x;
-		break;	
+		break;
 	default:
 		y = 8 * x;
    }
-   
-   
+
+   for(j=1; j<=2; j=j+1;)
+   {
+     println("Loop times");
+   }
+
    z = x*(2 + y) + (((4099)));
    println(z + x + -2);
    println(4107);
-   
-   
-   
+
+
+
    println("S1 test done");
 //===============================================================
    f(x + zero + z - 4107, z);
@@ -65,6 +69,24 @@ void main()
    print(i() + 2);
    println(" = 7");
    println("S6 test done");
+   //===============================================================
+   print(a&b);
+   println(" = 12");
+   print(a|b);
+   println(" = 61");
+   print(a^b);
+   println(" = 49");
+   print(~a);
+   println(" = -61");
+   print(2 + ~a);
+   println(" = -59");
+   print(a<<2);
+   println(" = 240");
+   print(a>>>2);
+   println(" = 15");
+   print(a>>2);
+   println(" = 15");
+   println("S7 test done");
 }
 int y = +2;
 void f(int x, int z)
@@ -261,4 +283,3 @@ int i()
 
     return x - 22;
 }
-

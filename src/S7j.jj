@@ -30,6 +30,7 @@ class S7j implements S7jSymTabConstants
   private S7jSymTab st;
   private S7jCodeGen cg;
   private Stack<String> lw;
+  private boolean outComment=false;
   //-----------------------------------------
   public static void main(String[] args) throws 
                                              IOException
@@ -125,7 +126,7 @@ class S7j implements S7jSymTabConstants
   }
 }                                          // end of S7j
 //======================================================
-class S7jSymTab implements SymTabConstants
+class S7jSymTab implements S7jSymTabConstants
 {
   private ArrayList<String> symbol;
   private ArrayList<Integer> relAdd;
@@ -202,7 +203,7 @@ class S7jSymTab implements SymTabConstants
   }
 }                                    // end of S7jSymTab
 //======================================================
-class S7jCodeGen implements SymTabConstants
+class S7jCodeGen implements S7jSymTabConstants
 {
   private PrintWriter outFile;
   private S7jSymTab st;
@@ -322,6 +323,12 @@ TOKEN:  // these tokens are returned to parser
  |
    <ELSE: "else">
  |
+   <SWITCH: "switch">
+ |
+   <CASE: "case">
+   |
+   <DEFAULT2: "default">  
+ |
    <DO: "do">
  | 
    <WHILE: "while">
@@ -373,6 +380,8 @@ TOKEN:  // these tokens are returned to parser
    <RIGHTBRACE: "}">
  |
    <COMMA: ",">
+ |
+   <COLON: ":">
 }
 //------------------------------------
 <IN_STRING>
@@ -624,6 +633,8 @@ void statement(): {Token t; boolean outComment;}
  	 |
    	   functionCall()            // also starts with <ID>
    	   ";"
+	|
+	   switchStatement()
  	 |
 	   printlnStatement()
 	 |
@@ -659,6 +670,8 @@ void statement(): {Token t; boolean outComment;}
     	getNextToken();
  }
 }
+
+
 //------------------------------
 void assignmentStatement(): {Token t; int index;}
 {
@@ -685,6 +698,90 @@ void assignmentTail(): {Token t; int index;}
    expr()
    ";"
 }
+
+//------------------------------
+void switchStatement(): {Token t;String label,label2;int i1; }{
+	"switch"
+	"("
+	expr()
+	")"
+	"{"
+	(
+	  LOOKAHEAD(1)	  "case"
+	  t = <UNSIGNED>
+	  ":"
+	  { cg.emitInstruction("dupe");}
+	  { i1=Integer.parseInt(t.image);}
+	  { cg.emitInstruction("p",t.image);}
+	  { cg.emitInstruction("cmps","4");}
+	  {label=cg.getLabel();}        
+	  { cg.emitInstruction("pnz",label);}
+	  { cg.emitLabel(label);}
+	  ( LOOKAHEAD(2)
+   	   assignmentStatement()     // starts with <ID>
+ 	 |
+   	   functionCall()            // also starts with <ID>
+   	   ";"	
+ 	 |
+	   printlnStatement()
+	 |
+	   printStatement()
+	 |
+	   nullStatement()
+	 |
+	   compoundStatement()
+	   {outComment = false;}
+	 |
+	   readintStatement()
+	 | 
+       whileStatement()
+     |
+       ifStatement()
+     |
+       doWhileStatement()
+     )
+          	  			
+	)+
+	(
+	  LOOKAHEAD(2)
+	  "default"
+	  ":"
+	  {label2=cg.getLabel();}
+	  { cg.emitLabel(label2);}
+	  
+	  ( LOOKAHEAD(2)
+   	   assignmentStatement()     // starts with <ID>
+ 	 |
+   	   functionCall()            // also starts with <ID>
+   	   ";"	
+ 	 |
+	   printlnStatement()
+	 |
+	   printStatement()
+	 |
+	   nullStatement()
+	 |
+	   compoundStatement()
+	   {outComment = false;}
+	 |
+	   readintStatement()
+	 | 
+       whileStatement()
+     |
+       ifStatement()
+     |
+       doWhileStatement()
+     )
+          	  			
+	)?
+	"}"
+	
+	{label2=cg.getLabel();}
+   {cg.emitInstruction("ja", label2);}   
+   {cg.emitLabel(label2);} 
+	
+}
+
 //------------------------------
 void printlnStatement(): {}
 {

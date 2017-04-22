@@ -10,20 +10,48 @@ void main()
 {
    int y, z;
 
-   x = +4 + -2;
+   x = -4 + -2;
+   //this switch case makes y equals to x, results to all correct tests
+   
    switch (x) {	
-	case 4:
-		y = 4 * x;
-		break;
-	case 2:
+	case +-6:
+		x = 2;
 		y = x;
-		break;
+		break;	
 	default:
 		y = 8 * x;
    }
+   
+   switch (x) {	
+	case 2:
+		y = x;
+		break;
+	case 4:
+		y = 4 * x;
+		break;	
+	default:
+		y = 8 * x;
+   }
+   
+   switch (x) {
+	case 1:
+	case +2:
+		y = x;
+		break;
+	case 4:
+		y = 4 * x;
+		break;	
+	default:
+		y = 8 * x;
+   }
+   
+   
    z = x*(2 + y) + (((4099)));
    println(z + x + -2);
    println(4107);
+   
+   
+   
    println("S1 test done");
 //===============================================================
    f(x + zero + z - 4107, z);

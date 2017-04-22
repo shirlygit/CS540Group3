@@ -532,6 +532,7 @@ void functionIntDefinition(): {Token t; int index = 0;}
 { 
    "int" 
    t=<ID>
+   
    {cg.emitString(
       "; =============== start of function " + t.image);}
    {st.enter(this, t.image, 0, FUNCTIONDEFINITION);}
@@ -700,7 +701,7 @@ void assignmentTail(): {Token t; int index;}
 }
 
 //------------------------------
-void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut2;int i1,index; }{
+void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut2,signValue; int i1,index; }{
 	"switch"
 	"("
 	expr()
@@ -712,12 +713,16 @@ void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut
 	{lw.push(labelOut);}
 	(
 	  LOOKAHEAD(1)	  "case"
+	  { signValue="+";}
+	  (<PLUS>)?
+	    (<MINUS>
+	    { if(signValue.equals("+")) signValue="-"; else  signValue="+";} 	    )?
 	  t = <UNSIGNED>
+	  { i1=signValue.equals("+")?Integer.parseInt(t.image):Integer.parseInt("-"+t.image);}
 	  ":"
 	  { cg.emitLabel(labelElse);}	  
 	  { cg.emitInstruction("dupe");}
-	  { i1=Integer.parseInt(t.image);}
-	  { cg.emitInstruction("pwc",t.image);}
+	  { cg.emitInstruction("pwc",i1+"");}
 	  { cg.emitInstruction("cmps","2");}
 	  {labelElse=cg.getLabel();}        
 	  { cg.emitInstruction("jz",labelElse);}	  
@@ -743,10 +748,12 @@ void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut
        ifStatement()
      |
        doWhileStatement()
-     |
+   	|
        "break"
-       {cg.emitInstruction("ja", lw.peek());}  
+       {cg.emitInstruction("ja", lw.peek());}
+       
      )*
+    
      { index++;}
      	  			
 	)+

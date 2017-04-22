@@ -14,38 +14,30 @@ main:
           asp         -1
           pc          x
           p           @L0
-^@L0:     dw        4
+^@L0:     dw        -4
           p           @L1
 ^@L1:     dw        -2
           add   
           stav  
-; x = + 4 + - 2 ; 
+; x = - 4 + - 2 ; 
           p           x
 @L2:     
           dupe  
-          pwc         4
+          pwc         -6
           cmps        2
           jz          @L4
-          cora        -1
+          pc          x
           p           @L5
-^@L5:     dw        4
+^@L5:     dw        2
+          stav  
+          cora        -1
           p           x
-          mult  
           stav  
           ja          @L3
 @L4:     
-          dupe  
-          pwc         2
-          cmps        2
-          jz          @L6
           cora        -1
-          p           x
-          stav  
-          ja          @L3
-@L6:     
-          cora        -1
-          p           @L7
-^@L7:     dw        8
+          p           @L6
+^@L6:     dw        8
           p           x
           mult  
           stav  
@@ -53,41 +45,120 @@ main:
 @L3:     
           pwc         10000
           cmps        2
-          jz          @L8
-          ja          @L8
+          jz          @L7
+          ja          @L7
+@L7:     
+; switch ( x ) { case + - 6 : x = 2 ; y = x ; break ; default : y = 8 * x ; } 
+          p           x
 @L8:     
-; switch ( x ) { case 4 : y = 4 * x ; break ; case 2 : y = x ; break ; default : y = 8 * x ; } 
+          dupe  
+          pwc         2
+          cmps        2
+          jz          @L10
+          cora        -1
+          p           x
+          stav  
+          ja          @L9
+@L10:    
+          dupe  
+          pwc         4
+          cmps        2
+          jz          @L11
+          cora        -1
+          p           @L12
+^@L12:    dw        4
+          p           x
+          mult  
+          stav  
+          ja          @L9
+@L11:    
+          cora        -1
+          p           @L13
+^@L13:    dw        8
+          p           x
+          mult  
+          stav  
+          ja          @L9
+@L9:     
+          pwc         10000
+          cmps        2
+          jz          @L14
+          ja          @L14
+@L14:    
+; switch ( x ) { case 2 : y = x ; break ; case 4 : y = 4 * x ; break ; default : y = 8 * x ; } 
+          p           x
+@L15:    
+          dupe  
+          pwc         1
+          cmps        2
+          jz          @L17
+@L17:    
+          dupe  
+          pwc         2
+          cmps        2
+          jz          @L18
+          cora        -1
+          p           x
+          stav  
+          ja          @L16
+@L18:    
+          dupe  
+          pwc         4
+          cmps        2
+          jz          @L19
+          cora        -1
+          p           @L20
+^@L20:    dw        4
+          p           x
+          mult  
+          stav  
+          ja          @L16
+@L19:    
+          cora        -1
+          p           @L21
+^@L21:    dw        8
+          p           x
+          mult  
+          stav  
+          ja          @L16
+@L16:    
+          pwc         10000
+          cmps        2
+          jz          @L22
+          ja          @L22
+@L22:    
+; switch ( x ) { case 1 : case + 2 : y = x ; break ; case 4 : y = 4 * x ; break ; default : y = 8 * x ; } 
           cora        -2
           p           x
-          p           @L9
-^@L9:     dw        2
+          p           @L23
+^@L23:    dw        2
           pr          -1
           add   
           mult  
-          p           @L10
-^@L10:    dw        4099
+          p           @L24
+^@L24:    dw        4099
           add   
           stav  
 ; z = x * ( 2 + y ) + ( ( ( 4099 ) ) ) ; 
           pr          -2
           p           x
           add   
-          p           @L11
-^@L11:    dw        -2
+          p           @L25
+^@L25:    dw        -2
           add   
           dout  
           pc          '\n'
           aout  
 ; println ( z + x + - 2 ) ; 
-          p           @L12
-^@L12:    dw        4107
+          p           @L26
+^@L26:    dw        4107
           dout  
           pc          '\n'
           aout  
 ; println ( 4107 ) ; 
-          pc          @L13
+          pc          @L27
           sout  
-^@L13:    dw        "S1 test done"
+^@L27:    dw        "S1 test done"
           pc          '\n'
           aout  
 ; println ( "S1 test done" ) ; 
@@ -96,32 +167,32 @@ main:
           add   
           pr          -2
           add   
-          p           @L14
-^@L14:    dw        4107
+          p           @L28
+^@L28:    dw        4107
           sub   
           pr          -2
           call        f
           asp         2
 ; f ( x + zero + z - 4107 , z ) ; 
-          p           @L15
-^@L15:    dw        10
-          p           @L16
-^@L16:    dw        20
+          p           @L29
+^@L29:    dw        10
+          p           @L30
+^@L30:    dw        20
           p           e
           call        g
           asp         3
 ; g ( 10 , 20 , e ) ; 
           call        h
 ; h ( ) ; 
-          pc          @L17
+          pc          @L31
           sout  
-^@L17:    dw        "S5 test done"
+^@L31:    dw        "S5 test done"
           pc          '\n'
           aout  
 ; println ( "S5 test done" ) ; 
-          pc          @L18
+          pc          @L32
           sout  
-^@L18:    dw        "Enter integer"
+^@L32:    dw        "Enter integer"
           pc          '\n'
           aout  
 ; println ( "Enter integer" ) ; 
@@ -129,9 +200,9 @@ main:
           din   
           stav  
 ; readint ( x ) ; 
-          pc          @L19
+          pc          @L33
           sout  
-^@L19:    dw        "= "
+^@L33:    dw        "= "
 ; print ( "= " ) ; 
           p           x
           dout  
@@ -140,20 +211,20 @@ main:
 ; println ( x ) ; 
           asp         -1
           call        i
-          p           @L20
-^@L20:    dw        2
+          p           @L34
+^@L34:    dw        2
           add   
           dout  
 ; print ( i ( ) + 2 ) ; 
-          pc          @L21
+          pc          @L35
           sout  
-^@L21:    dw        " = 7"
+^@L35:    dw        " = 7"
           pc          '\n'
           aout  
 ; println ( " = 7" ) ; 
-          pc          @L22
+          pc          @L36
           sout  
-^@L22:    dw        "S6 test done"
+^@L36:    dw        "S6 test done"
           pc          '\n'
           aout  
 ; println ( "S6 test done" ) ; 
@@ -167,9 +238,9 @@ y:        dw        2
 f:       
           esba  
           asp         -1
-          pc          @L23
+          pc          @L37
           sout  
-^@L23:    dw        "2 = "
+^@L37:    dw        "2 = "
 ; print ( "2 = " ) ; 
           p           y
           dout  
@@ -178,12 +249,12 @@ f:
 ; println ( y ) ; 
           pr          2
           pr          3
-          p           @L24
-^@L24:    dw        50
+          p           @L38
+^@L38:    dw        50
           sub   
           sub   
-          p           @L25
-^@L25:    dw        2
+          p           @L39
+^@L39:    dw        2
           div   
           pr          3
           sub   
@@ -191,8 +262,8 @@ f:
           pc          '\n'
           aout  
 ; println ( ( z - ( x - 50 ) ) / 2 - x ) ; 
-          p           @L26
-^@L26:    dw        2075
+          p           @L40
+^@L40:    dw        2075
           dout  
           pc          '\n'
           aout  
@@ -203,14 +274,14 @@ f:
 ; ; 
 ; {
           cora        3
-          p           @L27
-^@L27:    dw        10
+          p           @L41
+^@L41:    dw        10
           stav  
 ; x = 10 ; 
 ; ; 
           pc          y
-          p           @L28
-^@L28:    dw        20
+          p           @L42
+^@L42:    dw        20
           stav  
 ; y = 20 ; 
 ; }
@@ -227,8 +298,8 @@ f:
           pc          '\n'
           aout  
 ; println ( x ) ; 
-          p           @L29
-^@L29:    dw        1010
+          p           @L43
+^@L43:    dw        1010
           dout  
           pc          '\n'
           aout  
@@ -238,21 +309,21 @@ f:
           pc          '\n'
           aout  
 ; println ( y ) ; 
-          p           @L30
-^@L30:    dw        20
+          p           @L44
+^@L44:    dw        20
           dout  
           pc          '\n'
           aout  
 ; println ( 20 ) ; 
           cora        3
-          p           @L31
-^@L31:    dw        1
-          p           @L32
-^@L32:    dw        2
-          p           @L33
-^@L33:    dw        3
-          p           @L34
-^@L34:    dw        4
+          p           @L45
+^@L45:    dw        1
+          p           @L46
+^@L46:    dw        2
+          p           @L47
+^@L47:    dw        3
+          p           @L48
+^@L48:    dw        4
           add   
           add   
           add   
@@ -263,26 +334,26 @@ f:
           pc          '\n'
           aout  
 ; println ( x ) ; 
-          p           @L35
-^@L35:    dw        10
+          p           @L49
+^@L49:    dw        10
           dout  
           pc          '\n'
           aout  
 ; println ( 10 ) ; 
           cora        3
-          p           @L36
-^@L36:    dw        1
-          p           @L37
-^@L37:    dw        2
+          p           @L50
+^@L50:    dw        1
+          p           @L51
+^@L51:    dw        2
           add   
-          p           @L38
-^@L38:    dw        3
+          p           @L52
+^@L52:    dw        3
           add   
-          p           @L39
-^@L39:    dw        4
+          p           @L53
+^@L53:    dw        4
           add   
-          p           @L40
-^@L40:    dw        5
+          p           @L54
+^@L54:    dw        5
           add   
           stav  
 ; x = 1 + 2 + 3 + 4 + 5 ; 
@@ -291,48 +362,48 @@ f:
           pc          '\n'
           aout  
 ; println ( x ) ; 
-          p           @L41
-^@L41:    dw        15
+          p           @L55
+^@L55:    dw        15
           dout  
           pc          '\n'
           aout  
 ; println ( 15 ) ; 
-          pc          @L42
+          pc          @L56
           sout  
-^@L42:    dw        "S2 test done"
+^@L56:    dw        "S2 test done"
           pc          '\n'
           aout  
 ; println ( "S2 test done" ) ; 
-          pc          @L43
+          pc          @L57
           sout  
-^@L43:    dw        "four lines follow"
+^@L57:    dw        "four lines follow"
           pc          '\n'
           aout  
 ; println ( "four lines follow" ) ; 
-          pc          @L44
+          pc          @L58
           sout  
-^@L44:    dw        "one line"
+^@L58:    dw        "one line"
 ; print ( "one line" ) ; 
           pc          '\n'
           aout  
 ; println ( ) ; 
-          pc          @L45
+          pc          @L59
           sout  
-^@L45:    dw        "one line"
+^@L59:    dw        "one line"
           pc          '\n'
           aout  
 ; println ( "one line" ) ; 
-          pc          @L46
+          pc          @L60
           sout  
-^@L46:    dw        "third line\nfourth line"
+^@L60:    dw        "third line\nfourth line"
           pc          '\n'
           aout  
 ; println ( "third line\nfourth line" ) ; 
           cora        3
           pc          y
           cora        2
-          p           @L47
-^@L47:    dw        7
+          p           @L61
+^@L61:    dw        7
           dupe  
           rot   
           stav  
@@ -344,26 +415,26 @@ f:
           pr          3
           dout  
 ; print ( x ) ; 
-          pc          @L48
+          pc          @L62
           sout  
-^@L48:    dw        " = "
+^@L62:    dw        " = "
 ; print ( " = " ) ; 
           p           y
           dout  
 ; print ( y ) ; 
-          pc          @L49
+          pc          @L63
           sout  
-^@L49:    dw        " = "
+^@L63:    dw        " = "
 ; print ( " = " ) ; 
           pr          2
           dout  
 ; print ( z ) ; 
-          pc          @L50
+          pc          @L64
           sout  
-^@L50:    dw        " = "
+^@L64:    dw        " = "
 ; print ( " = " ) ; 
-          p           @L51
-^@L51:    dw        7
+          p           @L65
+^@L65:    dw        7
           dout  
           pc          '\n'
           aout  
@@ -376,19 +447,19 @@ f:
           neg   
           stav  
 ; z = - ( + x - + + - + + - + + + + - + + - + + - y ) ; 
-          pc          @L52
+          pc          @L66
           sout  
-^@L52:    dw        "-14 = "
+^@L66:    dw        "-14 = "
 ; print ( "-14 = " ) ; 
           pr          2
           dout  
 ; print ( z ) ; 
-          pc          @L53
+          pc          @L67
           sout  
-^@L53:    dw        " = "
+^@L67:    dw        " = "
 ; print ( " = " ) ; 
-          p           @L54
-^@L54:    dw        14
+          p           @L68
+^@L68:    dw        14
           neg   
           neg   
           neg   
@@ -396,9 +467,9 @@ f:
           pc          '\n'
           aout  
 ; println ( - ( - ( + ( - ( 14 ) ) ) ) ) ; 
-          pc          @L55
+          pc          @L69
           sout  
-^@L55:    dw        "////Enter integer////"
+^@L69:    dw        "////Enter integer////"
           pc          '\n'
           aout  
 ; println ( "////Enter integer////" ) ; 
@@ -406,50 +477,50 @@ f:
           din   
           stav  
 ; readint ( q ) ; 
-          pc          @L56
+          pc          @L70
           sout  
-^@L56:    dw        "= "
+^@L70:    dw        "= "
 ; print ( "= " ) ; 
           pr          -1
-          p           @L57
-^@L57:    dw        1
+          p           @L71
+^@L71:    dw        1
           add   
-          p           @L58
-^@L58:    dw        1
+          p           @L72
+^@L72:    dw        1
           sub   
           dout  
           pc          '\n'
           aout  
 ; println ( q + + + + 1 - 1 ) ; 
-          pc          @L59
+          pc          @L73
           sout  
-^@L59:    dw        "S3 test done"
+^@L73:    dw        "S3 test done"
           pc          '\n'
           aout  
 ; println ( "S3 test done" ) ; 
           cora        3
-          p           @L60
-^@L60:    dw        1
+          p           @L74
+^@L74:    dw        1
           stav  
 ; x = 1 ; 
-          pc          @L61
+          pc          @L75
           sout  
-^@L61:    dw        "2 1 on separate lines"
+^@L75:    dw        "2 1 on separate lines"
           pc          '\n'
           aout  
 ; println ( "2 1 on separate lines" ) ; 
-@L62:    
+@L76:    
           pr          3
-          jz          @L63
+          jz          @L77
 ; {
           pc          y
-          p           @L64
-^@L64:    dw        2
+          p           @L78
+^@L78:    dw        2
           stav  
 ; y = 2 ; 
-@L65:    
+@L79:    
           p           y
-          jz          @L66
+          jz          @L80
 ; {
           p           y
           dout  
@@ -458,74 +529,74 @@ f:
 ; println ( y ) ; 
           pc          y
           p           y
-          p           @L67
-^@L67:    dw        1
+          p           @L81
+^@L81:    dw        1
           sub   
           stav  
 ; y = y - 1 ; 
 ; }
-          ja          @L65
-@L66:    
+          ja          @L79
+@L80:    
 ; while ( y ) { println ( y ) ; y = y - 1 ; } 
           cora        3
           pr          3
-          p           @L68
-^@L68:    dw        1
+          p           @L82
+^@L82:    dw        1
           sub   
           stav  
 ; x = x - 1 ; 
 ; }
-          ja          @L62
-@L63:    
+          ja          @L76
+@L77:    
 ; while ( x ) { y = 2 ; while ( y ) { println ( y ) ; y = y - 1 ; } x = x - 1 ; } 
           pc          zero
-          p           @L69
-^@L69:    dw        0
+          p           @L83
+^@L83:    dw        0
           stav  
 ; zero = 0 ; 
-@L70:    
+@L84:    
           p           zero
-          jz          @L71
-          pc          @L72
+          jz          @L85
+          pc          @L86
           sout  
-^@L72:    dw        "bug"
+^@L86:    dw        "bug"
           pc          '\n'
           aout  
 ; println ( "bug" ) ; 
-          ja          @L70
-@L71:    
+          ja          @L84
+@L85:    
 ; while ( zero ) println ( "bug" ) ; 
           cora        3
-          p           @L73
-^@L73:    dw        0
-          p           @L74
-^@L74:    dw        3
+          p           @L87
+^@L87:    dw        0
+          p           @L88
+^@L88:    dw        3
           sub   
           stav  
 ; x = 0 - 3 ; 
-          pc          @L75
+          pc          @L89
           sout  
-^@L75:    dw        "hello -3 up to hello -1\n"
+^@L89:    dw        "hello -3 up to hello -1\n"
 ; print ( "hello -3 up to hello -1\n" ) ; 
-@L76:    
+@L90:    
           pr          3
-          jz          @L77
+          jz          @L91
 ; {
           pr          3
-          jz          @L78
-          pc          @L79
+          jz          @L92
+          pc          @L93
           sout  
-^@L79:    dw        "hello "
+^@L93:    dw        "hello "
 ; print ( "hello " ) ; 
-          ja          @L80
-@L78:    
-          pc          @L81
+          ja          @L94
+@L92:    
+          pc          @L95
           sout  
-^@L81:    dw        "bug1"
+^@L95:    dw        "bug1"
           pc          '\n'
           aout  
 ; println ( "bug1" ) ; 
-@L80:    
+@L94:    
 ; if ( x ) print ( "hello " ) ; else println ( "bug1" ) ; 
           pr          3
           dout  
@@ -534,29 +605,29 @@ f:
 ; println ( x ) ; 
           cora        3
           pr          3
-          p           @L82
-^@L82:    dw        1
+          p           @L96
+^@L96:    dw        1
           add   
           stav  
 ; x = x + 1 ; 
 ; }
-          ja          @L76
-@L77:    
+          ja          @L90
+@L91:    
 ; while ( x ) { if ( x ) print ( "hello " ) ; else println ( "bug1" ) ; println ( x ) ; x = x + 1 ; } 
           cora        3
-          p           @L83
-^@L83:    dw        2
+          p           @L97
+^@L97:    dw        2
           stav  
 ; x = 2 ; 
-          pc          @L84
+          pc          @L98
           sout  
-^@L84:    dw        "bye 2 down to bye 1\n"
+^@L98:    dw        "bye 2 down to bye 1\n"
 ; print ( "bye 2 down to bye 1\n" ) ; 
-@L85:    
+@L99:    
 ; {
-          pc          @L87
+          pc          @L101
           sout  
-^@L87:    dw        "bye "
+^@L101:   dw        "bye "
 ; print ( "bye " ) ; 
           pr          3
           dout  
@@ -565,100 +636,100 @@ f:
 ; println ( x ) ; 
           cora        3
           pr          3
-          p           @L88
-^@L88:    dw        1
+          p           @L102
+^@L102:   dw        1
           sub   
           stav  
 ; x = x - 1 ; 
 ; }
           pr          3
-          jnz         @L85
-@L86:    
+          jnz         @L99
+@L100:   
 ; do { print ( "bye " ) ; println ( x ) ; x = x - 1 ; } while ( x ) ; 
           cora        3
-          p           @L89
-^@L89:    dw        1
+          p           @L103
+^@L103:   dw        1
           stav  
 ; x = 1 ; 
-          pc          @L90
+          pc          @L104
           sout  
-^@L90:    dw        "Next line should say \"hello\" with the quotes"
+^@L104:   dw        "Next line should say \"hello\" with the quotes"
           pc          '\n'
           aout  
 ; println ( "Next line should say \"hello\" with the quotes" ) ; 
           pr          3
-          jz          @L91
+          jz          @L105
           pr          3
-          jz          @L92
+          jz          @L106
           pr          3
-          jz          @L93
+          jz          @L107
 ; {
-          pc          @L94
+          pc          @L108
           sout  
-^@L94:    dw        "\"hel"
+^@L108:   dw        "\"hel"
 ; print ( "\"hel" ) ; 
-          pc          @L95
+          pc          @L109
           sout  
-^@L95:    dw        "lo\""
+^@L109:   dw        "lo\""
           pc          '\n'
           aout  
 ; println ( "lo\"" ) ; 
 ; }
-          ja          @L96
-@L93:    
+          ja          @L110
+@L107:   
 ; {
-          pc          @L97
+          pc          @L111
           sout  
-^@L97:    dw        "bug3"
+^@L111:   dw        "bug3"
           pc          '\n'
           aout  
 ; println ( "bug3" ) ; 
 ; }
-@L96:    
+@L110:   
 ; if ( x ) { print ( "\"hel" ) ; println ( "lo\"" ) ; } else { println ( "bug3" ) ; } 
-@L92:    
+@L106:   
 ; if ( x ) if ( x ) { print ( "\"hel" ) ; println ( "lo\"" ) ; } else { println ( "bug3" ) ; } 
-@L91:    
+@L105:   
 ; if ( x ) if ( x ) if ( x ) { print ( "\"hel" ) ; println ( "lo\"" ) ; } else { println ( "bug3" ) ; } 
-          pc          @L98
+          pc          @L112
           sout  
-^@L98:    dw        "good = "
+^@L112:   dw        "good = "
 ; print ( "good = " ) ; 
           p           zero
-          jz          @L99
+          jz          @L113
 ; {
-          pc          @L100
+          pc          @L114
           sout  
-^@L100:   dw        "bug4"
+^@L114:   dw        "bug4"
           pc          '\n'
           aout  
 ; println ( "bug4" ) ; 
 ; }
-          ja          @L101
-@L99:    
-          pc          @L102
+          ja          @L115
+@L113:   
+          pc          @L116
           sout  
-^@L102:   dw        "good"
+^@L116:   dw        "good"
           pc          '\n'
           aout  
 ; println ( "good" ) ; 
-@L101:   
+@L115:   
 ; if ( zero ) { println ( "bug4" ) ; } else println ( "good" ) ; 
-          pc          @L103
+          pc          @L117
           sout  
-^@L103:   dw        "Next line should say \"bye\" without the quotes\nbye"
+^@L117:   dw        "Next line should say \"bye\" without the quotes\nbye"
           pc          '\n'
           aout  
 ; println ( "Next line should say \"bye\" without the quotes\nbye" ) ; 
-          pc          @L104
+          pc          @L118
           sout  
-^@L104:   dw        "\"3 backslashes and a double quote \\\\\\\" within a string\""
+^@L118:   dw        "\"3 backslashes and a double quote \\\\\\\" within a string\""
           pc          '\n'
           aout  
 ; println ( "\"3 backslashes and a double quote \\\\\\\" within a string\"" ) ; 
-          pc          @L105
+          pc          @L119
           sout  
-^@L105:   dw        "S4 test done"
+^@L119:   dw        "S4 test done"
           pc          '\n'
           aout  
 ; println ( "S4 test done" ) ; 
@@ -669,9 +740,9 @@ f:
           public      h
 h:       
           esba  
-          pc          @L106
+          pc          @L120
           sout  
-^@L106:   dw        "-8 = "
+^@L120:   dw        "-8 = "
 ; print ( "-8 = " ) ; 
           p           x
           p           z
@@ -687,14 +758,14 @@ h:
           public      i
 i:       
           esba  
-          p           @L107
-^@L107:   dw        10
-          p           @L108
-^@L108:   dw        20
+          p           @L121
+^@L121:   dw        10
+          p           @L122
+^@L122:   dw        20
           asp         -1
-          pc          @L109
+          pc          @L123
           sout  
-^@L109:   dw        "1 = "
+^@L123:   dw        "1 = "
 ; print ( "1 = " ) ; 
           pr          -1
           pr          -2
@@ -703,9 +774,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x < y ) ; 
-          pc          @L110
+          pc          @L124
           sout  
-^@L110:   dw        "1 = "
+^@L124:   dw        "1 = "
 ; print ( "1 = " ) ; 
           pr          -1
           pr          -2
@@ -714,9 +785,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x <= y ) ; 
-          pc          @L111
+          pc          @L125
           sout  
-^@L111:   dw        "0 = "
+^@L125:   dw        "0 = "
 ; print ( "0 = " ) ; 
           pr          -1
           pr          -2
@@ -725,9 +796,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x == y ) ; 
-          pc          @L112
+          pc          @L126
           sout  
-^@L112:   dw        "1 = "
+^@L126:   dw        "1 = "
 ; print ( "1 = " ) ; 
           pr          -1
           pr          -2
@@ -736,9 +807,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x != y ) ; 
-          pc          @L113
+          pc          @L127
           sout  
-^@L113:   dw        "0 = "
+^@L127:   dw        "0 = "
 ; print ( "0 = " ) ; 
           pr          -1
           pr          -2
@@ -747,9 +818,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x > y ) ; 
-          pc          @L114
+          pc          @L128
           sout  
-^@L114:   dw        "0 = "
+^@L128:   dw        "0 = "
 ; print ( "0 = " ) ; 
           pr          -1
           pr          -2
@@ -759,13 +830,13 @@ i:
           aout  
 ; println ( x >= y ) ; 
           cora        -1
-          p           @L115
-^@L115:   dw        20
+          p           @L129
+^@L129:   dw        20
           stav  
 ; x = 20 ; 
-          pc          @L116
+          pc          @L130
           sout  
-^@L116:   dw        "0 = "
+^@L130:   dw        "0 = "
 ; print ( "0 = " ) ; 
           pr          -1
           pr          -2
@@ -774,9 +845,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x < y ) ; 
-          pc          @L117
+          pc          @L131
           sout  
-^@L117:   dw        "1 = "
+^@L131:   dw        "1 = "
 ; print ( "1 = " ) ; 
           pr          -1
           pr          -2
@@ -785,9 +856,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x <= y ) ; 
-          pc          @L118
+          pc          @L132
           sout  
-^@L118:   dw        "1 = "
+^@L132:   dw        "1 = "
 ; print ( "1 = " ) ; 
           pr          -1
           pr          -2
@@ -796,9 +867,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x == y ) ; 
-          pc          @L119
+          pc          @L133
           sout  
-^@L119:   dw        "0 = "
+^@L133:   dw        "0 = "
 ; print ( "0 = " ) ; 
           pr          -1
           pr          -2
@@ -807,9 +878,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x != y ) ; 
-          pc          @L120
+          pc          @L134
           sout  
-^@L120:   dw        "0 = "
+^@L134:   dw        "0 = "
 ; print ( "0 = " ) ; 
           pr          -1
           pr          -2
@@ -818,9 +889,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x > y ) ; 
-          pc          @L121
+          pc          @L135
           sout  
-^@L121:   dw        "1 = "
+^@L135:   dw        "1 = "
 ; print ( "1 = " ) ; 
           pr          -1
           pr          -2
@@ -829,9 +900,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x >= y ) ; 
-          pc          @L122
+          pc          @L136
           sout  
-^@L122:   dw        "Enter integer"
+^@L136:   dw        "Enter integer"
           pc          '\n'
           aout  
 ; println ( "Enter integer" ) ; 
@@ -839,9 +910,9 @@ i:
           din   
           stav  
 ; readint ( x ) ; 
-          pc          @L123
+          pc          @L137
           sout  
-^@L123:   dw        "= "
+^@L137:   dw        "= "
 ; print ( "= " ) ; 
           pr          -1
           dout  
@@ -849,13 +920,13 @@ i:
           aout  
 ; println ( x ) ; 
           cora        -1
-          p           @L124
-^@L124:   dw        30
+          p           @L138
+^@L138:   dw        30
           stav  
 ; x = 30 ; 
-          pc          @L125
+          pc          @L139
           sout  
-^@L125:   dw        "0 = "
+^@L139:   dw        "0 = "
 ; print ( "0 = " ) ; 
           pr          -1
           pr          -2
@@ -864,9 +935,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x < y ) ; 
-          pc          @L126
+          pc          @L140
           sout  
-^@L126:   dw        "0 = "
+^@L140:   dw        "0 = "
 ; print ( "0 = " ) ; 
           pr          -1
           pr          -2
@@ -875,9 +946,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x <= y ) ; 
-          pc          @L127
+          pc          @L141
           sout  
-^@L127:   dw        "0 = "
+^@L141:   dw        "0 = "
 ; print ( "0 = " ) ; 
           pr          -1
           pr          -2
@@ -886,9 +957,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x == y ) ; 
-          pc          @L128
+          pc          @L142
           sout  
-^@L128:   dw        "1 = "
+^@L142:   dw        "1 = "
 ; print ( "1 = " ) ; 
           pr          -1
           pr          -2
@@ -897,9 +968,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x != y ) ; 
-          pc          @L129
+          pc          @L143
           sout  
-^@L129:   dw        "1 = "
+^@L143:   dw        "1 = "
 ; print ( "1 = " ) ; 
           pr          -1
           pr          -2
@@ -908,9 +979,9 @@ i:
           pc          '\n'
           aout  
 ; println ( x > y ) ; 
-          pc          @L130
+          pc          @L144
           sout  
-^@L130:   dw        "1 = "
+^@L144:   dw        "1 = "
 ; print ( "1 = " ) ; 
           pr          -1
           pr          -2
@@ -919,93 +990,93 @@ i:
           pc          '\n'
           aout  
 ; println ( x >= y ) ; 
-          pc          @L131
+          pc          @L145
           sout  
-^@L131:   dw        "5 = "
+^@L145:   dw        "5 = "
 ; print ( "5 = " ) ; 
-          p           @L132
-^@L132:   dw        11
-          p           @L133
-^@L133:   dw        6
+          p           @L146
+^@L146:   dw        11
+          p           @L147
+^@L147:   dw        6
           rem   
           dout  
           pc          '\n'
           aout  
 ; println ( 11 % 6 ) ; 
-          pc          @L134
+          pc          @L148
           sout  
-^@L134:   dw        "3 hello's and 3 goodbye's should follow"
+^@L148:   dw        "3 hello's and 3 goodbye's should follow"
           pc          '\n'
           aout  
 ; println ( "3 hello's and 3 goodbye's should follow" ) ; 
-@L135:   
+@L149:   
 ; {
-@L137:   
+@L151:   
           pr          -1
-          jz          @L138
+          jz          @L152
 ; {
           pr          -1
-          p           @L139
-^@L139:   dw        27
+          p           @L153
+^@L153:   dw        27
           cmps        2
-          jz          @L140
-          ja          @L138
+          jz          @L154
+          ja          @L152
 ; break 
-@L140:   
+@L154:   
 ; if ( x == 27 ) break 
 ; ; 
-          pc          @L141
+          pc          @L155
           sout  
-^@L141:   dw        "hello"
+^@L155:   dw        "hello"
           pc          '\n'
           aout  
 ; println ( "hello" ) ; 
           cora        -1
           pr          -1
-          p           @L142
-^@L142:   dw        1
+          p           @L156
+^@L156:   dw        1
           sub   
           stav  
 ; x = x - 1 ; 
 ; }
-          ja          @L137
-@L138:   
+          ja          @L151
+@L152:   
 ; while ( x ) { if ( x == 27 ) break ; println ( "hello" ) ; x = x - 1 ; } 
           pr          -2
-          p           @L143
-^@L143:   dw        17
+          p           @L157
+^@L157:   dw        17
           cmps        2
-          jz          @L144
-          ja          @L136
+          jz          @L158
+          ja          @L150
 ; break 
-@L144:   
+@L158:   
 ; if ( y == 17 ) break 
 ; ; 
-          pc          @L145
+          pc          @L159
           sout  
-^@L145:   dw        "goodbye"
+^@L159:   dw        "goodbye"
           pc          '\n'
           aout  
 ; println ( "goodbye" ) ; 
           cora        -2
           pr          -2
-          p           @L146
-^@L146:   dw        1
+          p           @L160
+^@L160:   dw        1
           sub   
           stav  
 ; y = y - 1 ; 
 ; }
           pr          -2
-          p           @L147
-^@L147:   dw        15
+          p           @L161
+^@L161:   dw        15
           cmps        1
-          jnz         @L135
-@L136:   
+          jnz         @L149
+@L150:   
 ; do { while ( x ) { if ( x == 27 ) break ; println ( "hello" ) ; x = x - 1 ; } if ( y == 17 ) break ; println ( "goodbye" ) ; y = y - 1 ; } while ( y > 15 ) ; 
           cora        2
           pr          -1
-          p           @L148
-^@L148:   dw        22
+          p           @L162
+^@L162:   dw        22
           sub   
           stav  
           reba  

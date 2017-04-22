@@ -11,11 +11,13 @@ void main()
    int y, z;
 
    x = +4 + -2;
-   switch (x) {
-	case 2:
-		y = x;
+   switch (x) {	
 	case 4:
 		y = 4 * x;
+		break;
+	case 2:
+		y = x;
+		break;
 	default:
 		y = 8 * x;
    }

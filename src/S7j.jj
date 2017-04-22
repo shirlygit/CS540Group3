@@ -708,7 +708,8 @@ void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut
 	"{"
 	{index=0;}
 	{labelElse=cg.getLabel();}
-	{labelOut=cg.getLabel();} 
+	{labelOut=cg.getLabel();}
+	{lw.push(labelOut);}
 	(
 	  LOOKAHEAD(1)	  "case"
 	  t = <UNSIGNED>
@@ -742,9 +743,12 @@ void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut
        ifStatement()
      |
        doWhileStatement()
-     )
+     |
+       "break"
+       {cg.emitInstruction("ja", lw.peek());}  
+     )*
      { index++;}
-     { cg.emitInstruction("ja",labelOut);}	  			
+     	  			
 	)+
 	(
 	  LOOKAHEAD(2)
@@ -775,6 +779,7 @@ void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut
        ifStatement()
      |
        doWhileStatement()
+      
      )
      { cg.emitInstruction("ja",labelOut);}	  			
           	  			
@@ -785,6 +790,7 @@ void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut
 	{ cg.emitLabel(labelOut);}
 	{ cg.emitInstruction("pwc","10000");}
 	{ cg.emitInstruction("cmps","2");}
+	{lw.pop();}
 	{labelOut2=cg.getLabel();}    
 	{ cg.emitInstruction("jz",labelOut2);}	
 	{ cg.emitInstruction("ja",labelOut2);}

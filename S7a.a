@@ -23,26 +23,26 @@ main:
           p           x
 @L2:     
           dupe  
-          pwc         2
+          pwc         4
           cmps        2
           jz          @L4
           cora        -1
-          p           x
-          stav  
-          ja          @L3
-@L4:     
-          dupe  
-          pwc         4
-          cmps        2
-          jz          @L5
-          cora        -1
-          p           @L6
-^@L6:     dw        4
+          p           @L5
+^@L5:     dw        4
           p           x
           mult  
           stav  
           ja          @L3
-@L5:     
+@L4:     
+          dupe  
+          pwc         2
+          cmps        2
+          jz          @L6
+          cora        -1
+          p           x
+          stav  
+          ja          @L3
+@L6:     
           cora        -1
           p           @L7
 ^@L7:     dw        8
@@ -56,7 +56,7 @@ main:
           jz          @L8
           ja          @L8
 @L8:     
-; switch ( x ) { case 2 : y = x ; case 4 : y = 4 * x ; default : y = 8 * x ; } 
+; switch ( x ) { case 4 : y = 4 * x ; break ; case 2 : y = x ; break ; default : y = 8 * x ; } 
           cora        -2
           p           x
           p           @L9

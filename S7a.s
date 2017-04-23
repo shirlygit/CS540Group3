@@ -10,9 +10,7 @@ void main()
 {
    int y, z, a = 60, b = 13, j;
 
-      x = -4 + -2;
-   //this switch case makes y equals to x, 
-   //results to all correct tests   
+  x = -4 + -2;
    switch (x) {	
 	case 3:
 		x =0;
@@ -26,7 +24,7 @@ void main()
    print("x (2) = ");
    println(x);
    
-
+   x=2;
    switch (x) {
 	case 2:
 	case 4:

@@ -717,7 +717,7 @@ void assignmentTail(): {Token t; int index;}
    ";"
 }
 //------------------------------
-void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut2,signValue; int i1,index; }{
+void switchStatement(): {Token t;String labelIf,labelElse,labelDefault,labelOut,labelOut2,labelFutureBreak,signValue; int i1,index;HashSet< String> setNonBreakCases;boolean isHavingBreakInCase; }{
 	"switch"
 	"("
 	expr()
@@ -726,11 +726,14 @@ void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut
 	{index=0;}
 	{labelElse=cg.getLabel();}
 	{labelOut=cg.getLabel();}
+	{labelFutureBreak=cg.getLabel();}
 	{lw.push(labelOut);}
+	{setNonBreakCases=new HashSet< String>();}
 	(
 	  LOOKAHEAD(1)
 	  "case"
 	  { signValue="+";}
+	  { isHavingBreakInCase=false;}
 	  (<PLUS>)?
 	    (<MINUS>
 	    { if(signValue.equals("+")) signValue="-"; else  signValue="+";} 
@@ -738,12 +741,15 @@ void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut
 	  t = <UNSIGNED>
 	  { i1=signValue.equals("+")?Integer.parseInt(t.image):Integer.parseInt("-"+t.image);}
 	  ":"
-	  { cg.emitLabel(labelElse);}	  
+	  { if(index!=0)cg.emitLabel(labelElse);}	  
 	  { cg.emitInstruction("dupe");}
 	  { cg.emitInstruction("pwc",i1+"");}
 	  { cg.emitInstruction("cmps","2");}
+	  
 	  {labelElse=cg.getLabel();}        
 	  { cg.emitInstruction("jz",labelElse);}	  
+	{ labelIf=cg.getLabel();}
+	{ cg.emitLabel(labelIf);}
 	  ( LOOKAHEAD(2)
    	   assignmentStatement()     // starts with <ID>
  	 |
@@ -769,10 +775,15 @@ void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut
    	 |
        "break"
        {cg.emitInstruction("ja", lw.peek());}
+       { isHavingBreakInCase=true;}
+       { setNonBreakCases.clear();}
+       { cg.emitLabel(labelFutureBreak);}
+	   {cg.emitInstruction("ja", labelIf);}
+       {labelFutureBreak=cg.getLabel();} 
+       
      )*
-    
-     { index++;}
-     	  			
+    { if(!isHavingBreakInCase) {setNonBreakCases.add(i1+"");cg.emitInstruction("ja", labelFutureBreak);};}
+     { index++;}     	  			
 	)+
 	(
 	  LOOKAHEAD(2)
@@ -805,11 +816,12 @@ void switchStatement(): {Token t;String labelElse,labelDefault,labelOut,labelOut
        doWhileStatement()
       
      )
+     
      { cg.emitInstruction("ja",labelOut);}	  			
           	  			
 	)?
 	"}"
-
+	{if(!setNonBreakCases.isEmpty()) { cg.emitLabel(labelFutureBreak);cg.emitInstruction("ja", labelIf);setNonBreakCases.clear() ;}}
 	
 	{ cg.emitLabel(labelOut);}
 	{ cg.emitInstruction("pwc","10000");}

@@ -10,40 +10,34 @@ void main()
 {
    int y, z, a = 60, b = 13, j;
 
-   x = -4 + -2;
-   //this switch case makes y equals to x, results to all correct tests
-
-   switch (x) {
+      x = -4 + -2;
+   //this switch case makes y equals to x, 
+   //results to all correct tests   
+   switch (x) {	
+	case 3:
+		x =0;
+		break;
 	case +-6:
 		x = 2;
-		y = x;
-		break;
+		break;	
 	default:
-		y = 8 * x;
+		x = 4;
    }
+   print("x (2) = ");
+   println(x);
+   
 
    switch (x) {
 	case 2:
-		y = x;
-		break;
 	case 4:
-		y = 4 * x;
+		y = x;
 		break;
 	default:
 		y = 8 * x;
    }
-
-   switch (x) {
-	case 1:
-	case +2:
-		y = x;
-		break;
-	case 4:
-		y = 4 * x;
-		break;
-	default:
-		y = 8 * x;
-   }
+   
+   print("y (2) = ");
+   println(y);
 
    for(j=1; j<=2; j=j+1;)
    {

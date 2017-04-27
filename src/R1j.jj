@@ -22,7 +22,7 @@ class R1j
   public static void main(String[] args) throws 
                                              IOException
   {
-    System.out.println("R1j compiler written by ...");
+    System.out.println("R1j compiler written by Hung PHAN, Sen SHen and Shirly OOi");
 
     if (args.length != 1)
     {
@@ -40,7 +40,7 @@ class R1j
     PrintWriter outFile = new PrintWriter(outFileName);
 
     // identify compiler/author in output file
-    outFile.println("; from R1j compiler written by ...");
+    outFile.println("; from R1j compiler written by Hung PHAN, Sen SHen and Shirly OOi");
 
     // construct objects that make up compiler
     R1jSymTab st = new R1jSymTab();

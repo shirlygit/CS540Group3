@@ -1,0 +1,373 @@
+// R1j.jj JavaCC input file for R1j compiler
+options 
+{
+  STATIC = false;         // generate non-static methods
+
+  // set to true to debug token manager
+  COMMON_TOKEN_ACTION = false;   
+
+  // pass parser reference to the token manager
+  TOKEN_MANAGER_USES_PARSER = true; 
+}                                // end of options block
+//======================================================
+PARSER_BEGIN(R1j)
+import java.io.*;
+import java.util.ArrayList;
+class R1j
+{
+  private PrintWriter outFile;   
+  private R1jSymTab st;
+  private R1jCodeGen cg;
+  //-----------------------------------------
+  public static void main(String[] args) throws 
+                                             IOException
+  {
+    System.out.println("R1j compiler written by ...");
+
+    if (args.length != 1)
+    {
+      System.err.println("Wrong number cmd line args");  
+      System.exit(1);
+    }
+
+    // build input and output file names
+    String inFileName = args[0] + ".s";
+    String outFileName = args[0] + ".a";
+
+    // construct file objects
+    FileInputStream inFile = 
+                       new FileInputStream(inFileName);
+    PrintWriter outFile = new PrintWriter(outFileName);
+
+    // identify compiler/author in output file
+    outFile.println("; from R1j compiler written by ...");
+
+    // construct objects that make up compiler
+    R1jSymTab st = new R1jSymTab();
+    R1jCodeGen cg = new R1jCodeGen(outFile, st);
+    R1j parser = new R1j(inFile);
+
+    // initialize parser's instance variables
+    parser.outFile = outFile;
+    parser.st = st;   
+    parser.cg = cg;
+
+    try 
+    {
+      parser.program();
+    }
+    catch(ParseException e) 
+    {
+      System.err.println(e.getMessage());
+      outFile.println(e.getMessage());
+      outFile.close();
+      System.exit(1);
+    }
+
+    outFile.close();
+  }
+  //-----------------------------------------
+  // If COMMON_TOKEN_ACTION is true, the token manager 
+  // calls makeComment for each token to create the
+  // token trace.
+  //
+  public void makeComment(Token t)
+  {
+    outFile.printf(
+      "; kd=%3d bL=%3d bC=%3d eL=%3d eC=%3d im= %s%n",
+       t.kind, t.beginLine, t.beginColumn, t.endLine, 
+       t.endColumn, t.image);
+  }
+}                                          // end of R1j
+//======================================================
+class R1jSymTab
+{
+  private ArrayList<String> symbol;
+  private ArrayList<String> dwValue;
+  private ArrayList<Boolean> needsdw;
+  //-----------------------------------------
+  public R1jSymTab()
+  {
+    symbol = new ArrayList<String>();
+    dwValue = new ArrayList<String>();
+    needsdw = new ArrayList<Boolean>();
+  }
+  //-----------------------------------------
+  public int enter(String s, String v, Boolean b)
+  {
+    int index = symbol.indexOf(s);
+    if (index >= 0) 	// s already in symbol?
+    	return index; 	// yes, then return its index
+
+    index = symbol.size();
+    symbol.add(s);		// add symbol
+    dwValue.add(v);		// aa value
+    needsdw.add(b);		// add needsdw value
+    return index;
+  }
+  //-----------------------------------------
+  public String getSymbol(int i)
+  {
+    return symbol.get(i);
+  }
+  //-----------------------------------------
+  public String getdwValue(int i)
+  {
+    return dwValue.get(i);
+  }
+  //-----------------------------------------
+  public Boolean getNeedsdw(int i)
+  {
+    return needsdw.get(i);
+  }
+  //-----------------------------------------
+  public void setNeedsdw(int i)
+  {
+    needsdw.set(i, true);
+  }
+  //-----------------------------------------
+  public int getSize()
+  {
+    return symbol.size();
+  }
+}                                    // end of R1jSymTab
+//======================================================
+class R1jCodeGen
+{
+  private PrintWriter outFile;
+  private R1jSymTab st;
+  private int tempIndex;
+  //-----------------------------------------
+  public R1jCodeGen(PrintWriter outFile, R1jSymTab st)
+  {
+    this.outFile = outFile;
+    this.st = st;
+    this.tempIndex = 0;
+  }
+  //-----------------------------------------
+  public int add(int left, int right)
+  {
+	emitInstruction("ld", left);
+	emitInstruction("add", right);
+	int temp = getTemp();		// returns index
+	emitInstruction("st", temp);
+	return temp;
+  }
+  //-----------------------------------------
+  public int mult(int left, int right)
+  {
+	emitInstruction("ld", left);
+	emitInstruction("mult", right);
+	int temp = getTemp();		// returns index
+	emitInstruction("st", temp);
+	return temp;
+  }
+  //-----------------------------------------
+  public void assign(int left, int expVal)
+  {
+	emitInstruction("ld", expVal);
+	emitInstruction("st", left);
+  }
+  //-----------------------------------------
+  public void println(int expVal)
+  {
+	emitInstruction("ld", expVal);
+	emitInstruction("dout");
+	emitInstruction("pc", "'\\n'");
+   	emitInstruction("aout");
+  }
+  //-----------------------------------------
+  private int getTemp()
+  {
+	String temp = "@t" + tempIndex++;	// create temp
+	return st.enter(temp, "0", true);	// return index
+  }
+  //-----------------------------------------
+  public void emitInstruction(String op)
+  {
+    outFile.printf("          %-4s%n", op); 
+  }
+  //-----------------------------------------
+  public void emitInstruction(String op, String opnd)
+  {
+    outFile.printf(
+                  "          %-4s      %s%n", op, opnd); 
+  }
+  //-----------------------------------------
+  public void emitInstruction(String op, int opndIndex)
+  {
+    emitInstruction(op, st.getSymbol(opndIndex));
+  }
+  //-----------------------------------------
+  public void emitdw(String label, String value)
+  {
+    outFile.printf(
+             "%-9s dw        %s%n", label + ":", value);
+  }
+  //-----------------------------------------
+  public void endCode()
+  {
+    outFile.println();
+    emitInstruction("          halt");
+
+    int size = st.getSize();
+    // emit dw for each symbol in the symbol table
+    for (int i=0; i < size; i++)
+    	if(st.getNeedsdw(i))
+      		emitdw(st.getSymbol(i), st.getdwValue(i));
+  }
+}                             // end of R1jCodeGen class
+PARSER_END(R1j)
+
+// Specification of the R1j token manager ==============
+
+TOKEN_MGR_DECLS:
+{
+  // called for each token returned to parser
+  void CommonTokenAction(Token t)
+  {
+    parser.makeComment(t);
+  }
+}
+//------------------------------
+SKIP:  // these tokens are not returned to parser
+{
+   " " 
+ | 
+   "\n" 
+ | 
+   "\r" 
+ | 
+   "\t"
+}
+//------------------------------
+TOKEN:  // these tokens are returned to parser
+{
+   <PRINTLN: "println">  // must precede <ID> 
+ |
+   <UNSIGNED: (["0"-"9"])+> 
+ |
+   <ID: ["A"-"Z","a"-"z"] (["A"-"Z","a"-"z","0"-"9"])*>
+ |
+   <ASSIGN: "=">
+ |
+   <SEMICOLON: ";">
+ |
+   <LEFTPAREN: "(">
+ |
+   <RIGHTPAREN: ")">
+ |
+   <PLUS: "+">
+ |
+   <MINUS: "-">
+ |
+   <TIMES: "*">
+ |
+   <ERROR: ~[]>  // matches any single character
+}
+
+// Translation grammar for R1j and R1 ==================
+
+void program(): {}
+{  
+   statementList() 
+   {cg.endCode();}
+   <EOF>
+}
+//------------------------------
+void statementList(): {} 
+{
+   statement() 
+   statementList()  
+ |  
+   {}
+}    
+//------------------------------
+void statement(): {} 
+{
+   assignmentStatement()
+ |
+   printlnStatement()
+}
+//------------------------------
+void assignmentStatement(): {Token t; int left, expVal;}
+{
+    t=<ID>  
+    {left = st.enter(t.image, "0", true);} 
+    "="
+    expVal=expr()
+    {cg.assign(left, expVal);}
+    ";"
+}
+//------------------------------
+void printlnStatement(): {int expVal;}
+{
+    "println"
+    "("
+    expVal = expr()
+    {cg.println(expVal);}
+    ")"
+    ";"
+}
+//------------------------------
+int expr(): {int left, expVal;}
+{
+   left=term()
+   expVal=termList(left)
+   {return expVal;}
+}
+//------------------------------
+int termList(int left): {int right, temp, expVal;}
+{
+   "+"
+   right=term()
+   {temp = cg.add(left, right);}
+   expVal=termList(temp)
+   {return expVal;}
+ |  
+   {return left;}
+}
+//------------------------------
+int term(): {int left, termVal;}
+{
+   left=factor()
+   termVal=factorList(left)
+   {return termVal;}
+}
+//------------------------------
+int factorList(int left): {int right, temp, termVal;}
+{
+   "*"  
+   right=factor()
+   {temp = cg.mult(left, right);}
+   termVal=factorList(temp)
+   {return termVal;}
+ |  
+   {return left;}
+}
+//------------------------------
+int factor(): {Token t; int index;} 
+{
+   t=<UNSIGNED> 
+   {index = st.enter("@" + t.image, t.image, true);}
+   {return index;}
+ |
+   "+"
+   t = <UNSIGNED>
+   {index = st.enter("@" + t.image, t.image, true);}
+   {return index;}
+ |
+   "-"
+   t = <UNSIGNED>
+   {index = st.enter("@_" + t.image, "-" + t.image, true);}
+   {return index;}
+ |
+   t=<ID> 
+   {index = st.enter(t.image, "0", true);}
+   {return index;}
+ |  
+   "(" 
+   index=expr() 
+   ")"
+   {return index;}
+}

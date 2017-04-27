@@ -22,7 +22,7 @@ class R1j
   public static void main(String[] args) throws 
                                              IOException
   {
-    System.out.println("R1j compiler written by Hung PHAN, Sen SHen and Shirly OOi");
+    System.out.println("R1j compiler written by Hung Phan, Sen Shen and Shir Lie Ooi");
 
     if (args.length != 1)
     {
@@ -40,7 +40,8 @@ class R1j
     PrintWriter outFile = new PrintWriter(outFileName);
 
     // identify compiler/author in output file
-    outFile.println("; from R1j compiler written by Hung PHAN, Sen SHen and Shirly OOi");
+    outFile.println("; R1j compiler written by Hung Phan, Sen Shen and Shir Lie Ooi");
+    outFile.println("!register");
 
     // construct objects that make up compiler
     R1jSymTab st = new R1jSymTab();
@@ -173,7 +174,7 @@ class R1jCodeGen
   {
 	emitInstruction("ld", expVal);
 	emitInstruction("dout");
-	emitInstruction("pc", "'\\n'");
+	emitInstruction("ldc", "'\\n'");
    	emitInstruction("aout");
   }
   //-----------------------------------------
@@ -208,7 +209,7 @@ class R1jCodeGen
   public void endCode()
   {
     outFile.println();
-    emitInstruction("          halt");
+    emitInstruction("halt");
 
     int size = st.getSize();
     // emit dw for each symbol in the symbol table

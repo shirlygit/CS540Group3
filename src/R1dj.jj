@@ -176,7 +176,6 @@ class R1djCodeGen
     if(ac==left)
     	emitInstruction("add",right);
     else	
-//	emitLoad(left);
 	if(ac==right)
 		emitInstruction("add", left);
 	else
@@ -199,13 +198,35 @@ class R1djCodeGen
   //-----------------------------------------
   public int mult(int left, int right)
   {
-	emitLoad(left);
-	emitInstruction("mult", right);
+    if(ac==left)
+    	emitInstruction("mult",right);
+    else	
+	if(ac==right)
+		emitInstruction("mult", left);
+	else
+	{
+	  if(st.isTemp(ac))
+	  {
+	    emitInstruction("st",ac);
+	    st.setNeedsdw(ac);
+	  }
+		emitLoad(left);
+		emitInstruction("mult",right);	  
+	}
 	freeTemp(left);
 	freeTemp(right);
 	int temp = getTemp();		// returns index
-	emitInstruction("st", temp);
+	ac=temp;
+	//emitInstruction("st", temp);
 	return temp;
+    
+//	emitLoad(left);
+//	emitInstruction("mult", right);
+//	freeTemp(left);
+//	freeTemp(right);
+//	int temp = getTemp();		// returns index
+//	emitInstruction("st", temp);
+//	return temp;
   }
   //-----------------------------------------
   public void assign(int left, int expVal)

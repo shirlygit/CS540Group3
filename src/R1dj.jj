@@ -173,12 +173,27 @@ class R1djCodeGen
   //-----------------------------------------
   public int add(int left, int right)
   {
-	emitLoad(left);
-	emitInstruction("add", right);
+    if(ac==left)
+    	emitInstruction("add",right);
+    else	
+//	emitLoad(left);
+	if(ac==right)
+		emitInstruction("add", left);
+	else
+	{
+	  if(st.isTemp(ac))
+	  {
+	    emitInstruction("st",ac);
+	    st.setNeedsdw(ac);
+	  }
+		emitLoad(left);
+		emitInstruction("add",right);	  
+	}
 	freeTemp(left);
 	freeTemp(right);
 	int temp = getTemp();		// returns index
-	emitInstruction("st", temp);
+	ac=temp;
+	//emitInstruction("st", temp);
 	return temp;
   }
   //-----------------------------------------

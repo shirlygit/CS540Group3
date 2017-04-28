@@ -126,6 +126,13 @@ class R1djSymTab
   {
     needsdw.set(i, true);
   }
+
+	//-----------------------------------------
+  public void setInitFalseNeedsdw(int i)
+  {
+    needsdw.set(i, false);
+  }
+  
   //-----------------------------------------
   public Boolean isConstant(int i)
   {
@@ -162,7 +169,7 @@ class R1djCodeGen
 {
   private PrintWriter outFile;
   private R1djSymTab st;
-  private int tempIndex,ac;
+  private int tempIndex,ac=-1;
   //-----------------------------------------
   public R1djCodeGen(PrintWriter outFile, R1djSymTab st)
   {
@@ -185,6 +192,7 @@ class R1djCodeGen
 	    emitInstruction("st",ac);
 	    st.setNeedsdw(ac);
 	  }
+	  //System.out.println("  "+st.getSymbolTable(ac));
 		emitLoad(left);
 		emitInstruction("add",right);	  
 	}
@@ -231,22 +239,28 @@ class R1djCodeGen
   //-----------------------------------------
   public void assign(int left, int expVal)
   {
-	    if(ac!=expVal) {
-		emitLoad(expVal);
+//    System.out.println(ac+" and "+expVal);
+    if(ac!=expVal) {
+			emitLoad(expVal);
 		
   	}  
 	freeTemp(expVal);
+//	System.out.println("Hey "+left);
 	emitInstruction("st", left);
 	ac=left;
   }
   //-----------------------------------------
   public void println(int expVal)
   {
-	emitLoad(expVal);
+	  if(ac!=expVal) {
+			emitLoad(expVal);
+		
+  	}
 	freeTemp(expVal);
 	emitInstruction("dout");
 	emitInstruction("ldc", "'\\n'");
    	emitInstruction("aout");
+   	//ac=left;
   }
   //-----------------------------------------
   public void emitLoad(int opndIndex)
@@ -259,8 +273,12 @@ class R1djCodeGen
   //-----------------------------------------
   public int getTemp()
   {
-	String temp = "@t" + tempIndex++;	// create temp
-	return st.enter(temp, "0", true);	// return index
+    String temp = "@t" + tempIndex++;
+	
+		// create temp
+	//st.setInitFalseNeedsdw(tempIndex);
+	
+	return st.enter(temp, "0", false);	// return index
   }
   //-----------------------------------------
   private void freeTemp(int opndIndex)
@@ -283,8 +301,13 @@ class R1djCodeGen
   public void emitInstruction(String op, int opndIndex)
   {
     if(st.isConstant(opndIndex)) {
+      
 		st.setNeedsdw(opndIndex);
     }
+//    if(st.getSymbol(opndIndex).equals("@t0")) {
+//		System.out.println("var "+st.getSymbol(opndIndex)+" ---" +opndIndex);
+//    
+//    }
     emitInstruction(op, st.getSymbol(opndIndex));
   }
   //-----------------------------------------

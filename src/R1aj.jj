@@ -132,7 +132,7 @@ class R1ajSymTab
 	if (i < 0) return false;
 	String s = symbol.get(i);
 	if (s.length() >= 2 && s.charAt(0) == '@' &&
-		(s.charAt(1) == ' ' || Character.isDigit(s.charAt(1))))
+		(s.charAt(1) == '_' || Character.isDigit(s.charAt(1))))
 		return true;
 	else
 		return false;

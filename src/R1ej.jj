@@ -1,4 +1,4 @@
-// R1dj.jj JavaCC input file for R1dj compiler
+// R1ej.jj JavaCC input file for R1ej compiler
 options 
 {
   STATIC = false;         // generate non-static methods
@@ -10,19 +10,19 @@ options
   TOKEN_MANAGER_USES_PARSER = true; 
 }                                // end of options block
 //======================================================
-PARSER_BEGIN(R1dj)
+PARSER_BEGIN(R1ej)
 import java.io.*;
 import java.util.ArrayList;
-class R1dj
+class R1ej
 {
   private PrintWriter outFile;   
-  private R1djSymTab st;
-  private R1djCodeGen cg;
+  private R1ejSymTab st;
+  private R1ejCodeGen cg;
   //-----------------------------------------
   public static void main(String[] args) throws 
                                              IOException
   {
-    System.out.println("R1dj compiler written by Hung Phan, Sen Shen and Shir Lie Ooi");
+    System.out.println("R1ej compiler written by Hung Phan, Sen Shen and Shir Lie Ooi");
 
     if (args.length != 1)
     {
@@ -40,13 +40,13 @@ class R1dj
     PrintWriter outFile = new PrintWriter(outFileName);
 
     // identify compiler/author in output file
-    outFile.println("; R1dj compiler written by Hung Phan, Sen Shen and Shir Lie Ooi");
+    outFile.println("; R1ej compiler written by Hung Phan, Sen Shen and Shir Lie Ooi");
     outFile.println("!register");
 
     // construct objects that make up compiler
-    R1djSymTab st = new R1djSymTab();
-    R1djCodeGen cg = new R1djCodeGen(outFile, st);
-    R1dj parser = new R1dj(inFile);
+    R1ejSymTab st = new R1ejSymTab();
+    R1ejCodeGen cg = new R1ejCodeGen(outFile, st);
+    R1ej parser = new R1ej(inFile);
 
     // initialize parser's instance variables
     parser.outFile = outFile;
@@ -79,15 +79,15 @@ class R1dj
        t.kind, t.beginLine, t.beginColumn, t.endLine, 
        t.endColumn, t.image);
   }
-}                                          // end of R1dj
+}                                          // end of R1ej
 //======================================================
-class R1djSymTab
+class R1ejSymTab
 {
   private ArrayList<String> symbol;
   private ArrayList<String> dwValue;
   private ArrayList<Boolean> needsdw;
   //-----------------------------------------
-  public R1djSymTab()
+  public R1ejSymTab()
   {
     symbol = new ArrayList<String>();
     dwValue = new ArrayList<String>();
@@ -126,13 +126,6 @@ class R1djSymTab
   {
     needsdw.set(i, true);
   }
-
-	//-----------------------------------------
-  public void setInitFalseNeedsdw(int i)
-  {
-    needsdw.set(i, false);
-  }
-  
   //-----------------------------------------
   public Boolean isConstant(int i)
   {
@@ -163,104 +156,131 @@ class R1djSymTab
   {
     return symbol.size();
   }
-}                                    // end of R1djSymTab
+}                                    // end of R1ejSymTab
 //======================================================
-class R1djCodeGen
+class R1ejCodeGen
 {
   private PrintWriter outFile;
-  private R1djSymTab st;
-  private int tempIndex,ac=-1;
+  private R1ejSymTab st;
+  private int tempIndex;
+  private String previousOp;
+  private String previousOpnd;
+  private int previousOpndIndex;
   //-----------------------------------------
-  public R1djCodeGen(PrintWriter outFile, R1djSymTab st)
+  public R1ejCodeGen(PrintWriter outFile, R1ejSymTab st)
   {
     this.outFile = outFile;
     this.st = st;
     this.tempIndex = 0;
+    this.previousOp = "?";
+    this.previousOpnd = "?";
+    this.previousOpndIndex = -1;
+  }
+  //-----------------------------------------
+  public void peephole(String op, int opndIndex)
+  {
+    String opnd = st.getSymbol(opndIndex);
+
+    //replace ld with ldc if possible
+    if(st.isConstant(opndIndex))
+    {
+      if(op.equals("ld") && Integer.parseInt(st.getdwValue(opndIndex)) >= 0 &&
+      	Integer.parseInt(st.getdwValue(opndIndex)) <= 4095)
+      	{
+      	  op = "ldc";
+      	  opnd = st.getdwValue(opndIndex);
+      	}
+      else
+      	st.setNeedsdw(opndIndex);
+    }
+
+    //check if okay not to emit current instruction
+    if (!(previousOp.equals("st") && op.equals("ld") && opnd.equals(previousOpnd) ||
+   		op.equals("st") && st.isTemp(opndIndex)))
+   	{
+   	  //must emit previous inst if st into temp
+   	  if(previousOp.equals("st") && st.isTemp(previousOpndIndex))
+   	  {
+   	    emitInstruction(previousOp, previousOpnd);
+   	    st.setNeedsdw(previousOpndIndex);
+   	  }
+   	  emitInstruction(op, opnd);
+   	}
+
+   	// save current instruction
+   	previousOp = op;
+    previousOpnd = opnd;
+    previousOpndIndex = opndIndex;
+  }
+  //-----------------------------------------
+  public void peephole(String op, String opnd)
+  {
+    if(previousOp.equals("st") && opnd.startsWith("@t"))
+   	{
+   	  emitInstruction(previousOp, previousOpnd);
+   	  st.setNeedsdw(previousOpndIndex);
+   	}
+   	emitInstruction(op, opnd);
+
+   	// save current instruction
+   	previousOp = op;
+    previousOpnd = opnd;
+    previousOpndIndex = -1;
+  }
+  //-----------------------------------------
+  public void peephole(String op)
+  {
+    peephole(op, "");
   }
   //-----------------------------------------
   public int add(int left, int right)
   {
-    if(ac==left)
-    	emitInstruction("add",right);
-    else	
-	if(ac==right)
-		emitInstruction("add", left);
-	else
-	{
-	  if(st.isTemp(ac))
-	  {
-	    emitInstruction("st",ac);
-	    st.setNeedsdw(ac);
-	  }
-	  //System.out.println("  "+st.getSymbolTable(ac));
-		emitLoad(left);
-		emitInstruction("add",right);	  
-	}
+    if (!st.isTemp(left) && st.isTemp(right))
+    {
+      peephole("ld", right);
+      peephole("add", left);
+    } else {
+      peephole("ld", left);
+      peephole("add", right);
+    }
 	freeTemp(left);
 	freeTemp(right);
 	int temp = getTemp();		// returns index
-	ac=temp;
-	//emitInstruction("st", temp);
+	peephole("st", temp);
 	return temp;
   }
   //-----------------------------------------
   public int mult(int left, int right)
   {
-    if(ac==left)
-    	emitInstruction("mult",right);
-    else	
-	if(ac==right)
-		emitInstruction("mult", left);
-	else
-	{
-	  if(st.isTemp(ac))
-	  {
-	    emitInstruction("st",ac);
-	    st.setNeedsdw(ac);
-	  }
-		emitLoad(left);
-		emitInstruction("mult",right);	  
-	}
+	if (!st.isTemp(left) && st.isTemp(right))
+    {
+      peephole("ld", right);
+      peephole("mult", left);
+    } else {
+      peephole("ld", left);
+      peephole("mult", right);
+    }
 	freeTemp(left);
 	freeTemp(right);
 	int temp = getTemp();		// returns index
-	ac=temp;
-	//emitInstruction("st", temp);
+	peephole("st", temp);
 	return temp;
-    
-//	emitLoad(left);
-//	emitInstruction("mult", right);
-//	freeTemp(left);
-//	freeTemp(right);
-//	int temp = getTemp();		// returns index
-//	emitInstruction("st", temp);
-//	return temp;
   }
   //-----------------------------------------
   public void assign(int left, int expVal)
   {
-//    System.out.println(ac+" and "+expVal);
-    if(ac!=expVal) {
-			emitLoad(expVal);
-		
-  	}  
+    peephole("ld", expVal);
 	freeTemp(expVal);
-//	System.out.println("Hey "+left);
-	emitInstruction("st", left);
-	ac=left;
+	peephole("st", left);
   }
   //-----------------------------------------
   public void println(int expVal)
   {
-	  if(ac!=expVal) {
-			emitLoad(expVal);
-		
-  	}
+    peephole("ld", expVal);
 	freeTemp(expVal);
-	emitInstruction("dout");
-	emitInstruction("ldc", "'\\n'");
-   	emitInstruction("aout");
-   	//ac=left;
+	peephole("dout");
+	peephole("ldc", "'\\n'");
+   	peephole("aout");
   }
   //-----------------------------------------
   public void emitLoad(int opndIndex)
@@ -273,11 +293,7 @@ class R1djCodeGen
   //-----------------------------------------
   public int getTemp()
   {
-    String temp = "@t" + tempIndex++;
-	
-		// create temp
-	//st.setInitFalseNeedsdw(tempIndex);
-	
+	String temp = "@t" + tempIndex++;	// create temp
 	return st.enter(temp, "0", false);	// return index
   }
   //-----------------------------------------
@@ -300,14 +316,8 @@ class R1djCodeGen
   //-----------------------------------------
   public void emitInstruction(String op, int opndIndex)
   {
-    if(st.isConstant(opndIndex)) {
-      
-		st.setNeedsdw(opndIndex);
-    }
-//    if(st.getSymbol(opndIndex).equals("@t0")) {
-//		System.out.println("var "+st.getSymbol(opndIndex)+" ---" +opndIndex);
-//    
-//    }
+    if(st.isConstant(opndIndex))
+    	st.setNeedsdw(opndIndex);
     emitInstruction(op, st.getSymbol(opndIndex));
   }
   //-----------------------------------------
@@ -328,10 +338,10 @@ class R1djCodeGen
     	if(st.getNeedsdw(i))
       		emitdw(st.getSymbol(i), st.getdwValue(i));
   }
-}                             // end of R1djCodeGen class
-PARSER_END(R1dj)
+}                             // end of R1ejCodeGen class
+PARSER_END(R1ej)
 
-// Specification of the R1dj token manager ==============
+// Specification of the R1ej token manager ==============
 
 TOKEN_MGR_DECLS:
 {
@@ -378,7 +388,7 @@ TOKEN:  // these tokens are returned to parser
    <ERROR: ~[]>  // matches any single character
 }
 
-// Translation grammar for R1dj and R1c ==================
+// Translation grammar for R1ej and R1e ==================
 
 void program(): {}
 {  
